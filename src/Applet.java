@@ -1,15 +1,13 @@
 
 // @author Daniel.Meza
 
-import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -27,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -54,7 +53,9 @@ public class Applet extends JPanel {
        private JTextField cRuta,cExcel;
        private JButton bExaminar,bProcesarAplicaciones,bExcel;
        private JFileChooser fileChooser;
-       private ArrayList<Object> aplicaciones,fechas,instituciones,registro,respuesta,cve_instr;
+       private ArrayList<Object> fechas,instituciones,cve_instr,aplicacionesInexistentes,appDatMControlNoDat;
+       private Map<Object,String> registro,respuesta,ImagenesRegistro,ImagenesRespuesta;       
+       private Map<Object,Integer> aplicaciones,imagEncR,imagEncS;
        private File aExcel;
        private ExtendedService extendedService;
        private JComboBox<String> comboMes,comboTipoInstr,comboNombres_cortos;
@@ -521,11 +522,11 @@ public class Applet extends JPanel {
                                         String rutaExcel = cExcel.getText().trim();
                                         String rutaDats = cRuta.getText().trim();
              
-                                        aplicaciones  = new ArrayList<>();
+                                        aplicaciones  = new HashMap<Object,Integer>();
                                         fechas        = new ArrayList<>();
                                         instituciones = new ArrayList<>();
-                                        registro      = new ArrayList<>();
-                                        respuesta     = new ArrayList<>();
+                                        registro      = new HashMap<>();
+                                        respuesta     = new HashMap<>();
                                         cve_instr     = new ArrayList<>();
                           
                                         if( rutaExcel.equals("") ){
@@ -549,7 +550,8 @@ public class Applet extends JPanel {
                                         try{
                                                                                         
                                             obtenDatos();
-                                            
+                                            cuentaImagenes();  
+                                            cuentaPosiciones();
                                             
                                        }catch(Exception e){ e.printStackTrace(); }                                                                                                                                                                      
                                                                                                      
@@ -581,7 +583,9 @@ public class Applet extends JPanel {
                         
                                       try{
                                                    
-                                          select += " where  = '" + cste + "'" ;
+                                          select += " where nom_corto = '" + cste + "'" ;
+                                          System.out.println(select);
+                                          
                                           ResultSet rs = statement.executeQuery(select);
                                           
                                           while ( rs.next() ){
@@ -603,7 +607,7 @@ public class Applet extends JPanel {
                                                        String scTipoAplicacion  = cTipoAplicacion.getStringCellValue().trim();                                                  
                                                        String scSTipoAplicacion = cSTipoAplcacion.getStringCellValue().trim();
                                                        String scInstitucion     = cInstitucion.getStringCellValue().trim();
-                                                       String scClave_instr      = cClave_instr.getStringCellValue().trim();
+                                                       int scClave_instr        = Integer.parseInt( cClave_instr.getStringCellValue());
                                                        double noRegistrados     = noRegistradosCell.getNumericCellValue();
                                                        double noRespuesta       = noRespuestaCell.getNumericCellValue();                                                                                  
                          
@@ -617,7 +621,7 @@ public class Applet extends JPanel {
                                                        int fem = c.get(Calendar.MONTH);                                                                                                                    
                                                        int cmi = comboMes.getSelectedIndex();
                                                                                                                                                                               
-                                                       if( fem == cmi && cte.equals(scTipoAplicacion) ){                                                                                                                                  
+                                                       if( fem == cmi && scClave_instr == datoCve_instr ){                                                                                                                                  
                                                
                                                            Cell cApp   = r.getCell(0);
                                                            Object oapp = cApp.getStringCellValue();                                                                                                                                                                                            
@@ -627,10 +631,10 @@ public class Applet extends JPanel {
                                                                                    noRespuesta + " " + scInstitucion + " " + scClave_instr );                                                                                                                                 
                                                                h++;
                                                
-                                                               aplicaciones.add(oapp);   
+                                                               aplicaciones.put(oapp,scClave_instr);   
                                                                fechas.add(fechaExcel);
-                                                               registro.add(noRegistrados);
-                                                               respuesta.add(respuesta);
+                                                               registro.put(oapp,String.valueOf(noRegistrados));
+                                                               respuesta.put(oapp,String.valueOf(noRespuesta));
                                                                instituciones.add(scInstitucion);
                                                                cve_instr.add(scClave_instr);
                                                    
@@ -644,6 +648,137 @@ public class Applet extends JPanel {
                                           
                                   }catch(Exception e){ e.printStackTrace(); }
                                       
+                              }
+                              
+                              private void cuentaImagenes(){
+                                     
+                                      String ruta = cRuta.getText().trim();                                      
+                                      aplicacionesInexistentes = new ArrayList<>();                                      
+                                      
+                                      int i = 1;
+                                      int imagenes = 0;
+                                      
+                                      Set<Object> ks = aplicaciones.keySet();
+                                      Iterator<Object> it = ks.iterator();
+                                      
+                                      try{
+                                                                                
+                                          while( it.hasNext() ){
+                                          
+                                                 Object o = it.next();
+                                                 String numeroAplicacion = (String)o;                                                                                      
+                                                 File appDir = new File(ruta + "\\" + numeroAplicacion);
+                                                 boolean existe = appDir.exists();
+                                                 if( !existe ){ aplicacionesInexistentes.add(o); }
+                                                 else{
+                                                      boolean esDir = appDir.isDirectory();                       	  
+                                                      if( esDir ){                                                                                                                                  
+                                                          File[] archivos = appDir.listFiles();                                                                                                                          
+                                                          for(File f : archivos){                                                                                                      
+                                                              String nombreArchivo = f.getName();                                                                                                
+                                                              if( nombreArchivo.endsWith(".tif") ){ imagenes++; }                                                                                                                                                                                                                                                      
+                                                          }                                                                                                                                                                              
+                                                      }
+                                           
+                                                      i++;
+                                                                                      
+                                                 }
+                                     
+                                          }
+                                          
+                                      }catch(Exception e){ e.printStackTrace(); }    
+                              
+                              }
+                              
+                              private void cuentaPosiciones(){
+                                     
+                                      System.out.println("En cuentaPosiciones");                                      
+                                      String rutaDatif = cRuta.getText().trim();  
+                                      appDatMControlNoDat = new ArrayList<>();
+                                      
+                                      Set<Object> ks = aplicaciones.keySet();
+                                      Iterator<Object> it = ks.iterator();
+                                      
+                                      while( it.hasNext() ){
+                                          
+                                             Object o = it.next();
+                                             if( aplicacionesInexistentes.contains(o) ){ continue; }
+                                             String aplicacion = (String)o;
+                                           rutaDatif += "\\" + aplicacion + "\\DATIF";
+                                           File datif = new File(rutaDatif);
+                                           
+                                           boolean existeDatif = datif.exists();
+                                           if(existeDatif){
+                                              String Datif = datif.getAbsolutePath();                     
+                                              File[] archivos = datif.listFiles(                            		   
+                         	 	             new FileFilter() {
+                     			                 @Override
+                                                         public boolean accept(File pathname) {                                     
+                                                                if( pathname.getName().endsWith(".dat") ){ return true; }                                          
+                                                                return false;                                        
+                                                         }
+                   
+                                                     }
+                                                      
+                                              );                                                                                            
+                                                                                            
+                                              int r = -1;
+                                              int S = -1;
+                                              int la = (archivos.length - 1);                          
+                                                                        
+                                              if( la == -1 && ( registro.containsKey(o) || respuesta.containsKey(o) ) ){      
+                                                  System.out.println("No hay dats " + o);
+                                                  appDatMControlNoDat.add(o);
+                                                  continue;
+                                              }
+                                              
+                                              for( int m = 0; m <= la; m++ ){
+                              
+                                                   String nombreArchivo = archivos[m].getName();                                                                                                            
+                                                   String subNombreArchivo = "";
+                               
+                                                   for( int i = 0; i <= nombreArchivo.length() - 5; i++ ){
+                                                        subNombreArchivo += nombreArchivo.charAt(i);
+                                                   }
+                                                   
+                                                   System.out.println(nombreArchivo + " " + subNombreArchivo);
+                                                              
+                                                   char ci = nombreArchivo.charAt(0);
+                                                                                  
+                                                   if( subNombreArchivo.matches("[Rr]\\d{9}[Xx][_\\d]") || subNombreArchivo.matches("[Ss]\\d{9}[Xx][_\\d]") ){ 
+                                   
+                                                       String c = "";
+                                                       c += ci;
+                                    
+                                                       if( c.matches("[RrSs]") ){                                                       
+                                                           if( "r".equals(c) || "R".equals(c) ){                                                                 
+                                                               r++;                                 
+                                                           }   
+                                                           if( "s".equals(c) || "S".equals(c) ){                                                               
+                                                               S++;
+                                                           }
+                                                       }                                                                                          
+                                   
+                                                   }else{
+                                                       
+                                                         if( la == m ){
+                                                             
+                                                             if( ( r == -1 && registro.containsKey(o) ) || ( S == -1 && respuesta.containsKey(o) ) ){
+                                                                 
+                                                                                                                                 
+                                                               
+                                                             }
+                                                             
+                                                         }
+                                                         
+                                                   }    
+                                                                                                                                     
+                                              }
+                                              
+                                           }                                                                                      
+                                           
+                                      }
+                                   
                               }
                 
                               private Statement conectaBase(){
