@@ -54,7 +54,7 @@ public class Applet extends JPanel {
        private JButton bExaminar,bProcesarAplicaciones,bExcel;
        private JFileChooser fileChooser;
        private ArrayList<Object> fechas,instituciones,cve_instr,aplicacionesInexistentes,appDatMControlNoDat;
-       private Map<Object,String> registro,respuesta,ImagenesRegistro,ImagenesRespuesta;       
+       private Map<Object,String> registro,respuesta;
        private Map<Object,Integer> aplicaciones,imagEncR,imagEncS;
        private File aExcel;
        private ExtendedService extendedService;
@@ -550,7 +550,7 @@ public class Applet extends JPanel {
                                         try{
                                                                                         
                                             obtenDatos();
-                                            cuentaImagenes();  
+                                            //cuentaImagenes();  
                                             cuentaPosiciones();
                                             
                                        }catch(Exception e){ e.printStackTrace(); }                                                                                                                                                                      
@@ -656,7 +656,8 @@ public class Applet extends JPanel {
                                       aplicacionesInexistentes = new ArrayList<>();                                      
                                       
                                       int i = 1;
-                                      int imagenes = 0;
+                                      int imagenesExistenR = 0;
+                                      int imagenesExistenS = 0;
                                       
                                       Set<Object> ks = aplicaciones.keySet();
                                       Iterator<Object> it = ks.iterator();
@@ -676,11 +677,38 @@ public class Applet extends JPanel {
                                                           File[] archivos = appDir.listFiles();                                                                                                                          
                                                           for(File f : archivos){                                                                                                      
                                                               String nombreArchivo = f.getName();                                                                                                
-                                                              if( nombreArchivo.endsWith(".tif") ){ imagenes++; }                                                                                                                                                                                                                                                      
-                                                          }                                                                                                                                                                              
-                                                      }
-                                           
-                                                      i++;
+                                                              if( nombreArchivo.endsWith(".tif") && 
+                                                                  ( nombreArchivo.startsWith("R") || nombreArchivo.startsWith("r") )){ 
+                                                                    imagenesExistenR++; 
+                                                              }                                                                                                                                                                                                                                                      
+                                                              
+                                                              if( nombreArchivo.endsWith(".tif") && 
+                                                                  ( nombreArchivo.startsWith("s") || nombreArchivo.startsWith("S") )){ 
+                                                                  imagenesExistenS++; 
+                                                              }                                                                                                                                                                                                                                                      
+                                                              
+                                                         }
+                                                          
+                                                         try{
+                                                             
+                                                             int rreales,sreales;
+                                                             int cve_instr = aplicaciones.get(o);
+                                                             Statement s = conectaBase();                                                             
+                                                             ResultSet rs = 
+                                                                       s.executeQuery(
+                                                                          "select canImaReg,canImaRes from datos_examenes where cve_instr = " + cve_instr
+                                                                       );
+                                                             
+                                                             rs.next();
+                                                             rreales = rs.getInt(1);
+                                                             rs.next();
+                                                             sreales = rs.getInt(2);
+                                                             
+                                                             s.close();
+                                                             
+                                                         }catch(Exception e){ e.printStackTrace(); }
+                                                          
+                                                      }                                           
                                                                                       
                                                  }
                                      
@@ -704,76 +732,74 @@ public class Applet extends JPanel {
                                              Object o = it.next();
                                              if( aplicacionesInexistentes.contains(o) ){ continue; }
                                              String aplicacion = (String)o;
-                                           rutaDatif += "\\" + aplicacion + "\\DATIF";
-                                           File datif = new File(rutaDatif);
+                                             rutaDatif += "\\" + aplicacion + "\\DATIF";
+                                             File datif = new File(rutaDatif);
                                            
-                                           boolean existeDatif = datif.exists();
-                                           if(existeDatif){
-                                              String Datif = datif.getAbsolutePath();                     
-                                              File[] archivos = datif.listFiles(                            		   
-                         	 	             new FileFilter() {
-                     			                 @Override
-                                                         public boolean accept(File pathname) {                                     
-                                                                if( pathname.getName().endsWith(".dat") ){ return true; }                                          
-                                                                return false;                                        
-                                                         }
+                                             boolean existeDatif = datif.exists();
+                                             if( existeDatif ){
+                                                 String Datif = datif.getAbsolutePath();                     
+                                                 File[] archivos = datif.listFiles(                            		   
+                         	 	                new FileFilter() {
+                     			                    @Override
+                                                            public boolean accept(File pathname) {                                     
+                                                                   if( pathname.getName().endsWith(".dat") ){ return true; }                                          
+                                                                   return false;                                        
+                                                            }
                    
-                                                     }
+                                                        }
                                                       
-                                              );                                                                                            
+                                                 );                                                                                            
                                                                                             
-                                              int r = -1;
-                                              int S = -1;
-                                              int la = (archivos.length - 1);                          
+                                                 int r = -1;
+                                                 int S = -1;
+                                                 int la = (archivos.length - 1);                          
                                                                         
-                                              if( la == -1 && ( registro.containsKey(o) || respuesta.containsKey(o) ) ){      
-                                                  System.out.println("No hay dats " + o);
-                                                  appDatMControlNoDat.add(o);
-                                                  continue;
-                                              }
+                                                 if( la == -1 && ( registro.containsKey(o) || respuesta.containsKey(o) ) ){      
+                                                     System.out.println("No hay dats " + o);
+                                                     appDatMControlNoDat.add(o);
+                                                     continue;
+                                                 }
                                               
-                                              for( int m = 0; m <= la; m++ ){
+                                                 for( int m = 0; m <= la; m++ ){
                               
-                                                   String nombreArchivo = archivos[m].getName();                                                                                                            
-                                                   String subNombreArchivo = "";
+                                                      String nombreArchivo = archivos[m].getName();                                                                                                            
+                                                      String subNombreArchivo = "";
                                
-                                                   for( int i = 0; i <= nombreArchivo.length() - 5; i++ ){
-                                                        subNombreArchivo += nombreArchivo.charAt(i);
-                                                   }
+                                                      for( int i = 0; i <= nombreArchivo.length() - 5; i++ ){
+                                                           subNombreArchivo += nombreArchivo.charAt(i);
+                                                      }
                                                    
-                                                   System.out.println(nombreArchivo + " " + subNombreArchivo);
+                                                      System.out.println(nombreArchivo + " " + subNombreArchivo);
                                                               
-                                                   char ci = nombreArchivo.charAt(0);
+                                                      char ci = nombreArchivo.charAt(0);
                                                                                   
-                                                   if( subNombreArchivo.matches("[Rr]\\d{9}[Xx][_\\d]") || subNombreArchivo.matches("[Ss]\\d{9}[Xx][_\\d]") ){ 
+                                                      if( subNombreArchivo.matches("[Rr]\\d{9}[Xx][_\\d]") || subNombreArchivo.matches("[Ss]\\d{9}[Xx][_\\d]") ){ 
                                    
-                                                       String c = "";
-                                                       c += ci;
-                                    
-                                                       if( c.matches("[RrSs]") ){                                                       
-                                                           if( "r".equals(c) || "R".equals(c) ){                                                                 
-                                                               r++;                                 
-                                                           }   
-                                                           if( "s".equals(c) || "S".equals(c) ){                                                               
-                                                               S++;
-                                                           }
-                                                       }                                                                                          
+                                                          String c = "";
+                                                          c += ci;
+                                      
+                                                          if( c.matches("[RrSs]") ){                                                       
+                                                              if( "r".equals(c) || "R".equals(c) ){                                                                 
+                                                                  r++;                                 
+                                                              }   
+                                                              if( "s".equals(c) || "S".equals(c) ){                                                               
+                                                                  S++;
+                                                              }
+                                                          }                                                                                          
                                    
-                                                   }else{
+                                                      }else{
                                                        
-                                                         if( la == m ){
+                                                            if( la == m ){
                                                              
-                                                             if( ( r == -1 && registro.containsKey(o) ) || ( S == -1 && respuesta.containsKey(o) ) ){
-                                                                 
-                                                                                                                                 
-                                                               
-                                                             }
+                                                                if( ( r == -1 && registro.containsKey(o) ) || ( S == -1 && respuesta.containsKey(o) ) ){
+                                                                                                                                                                                                                                                                 
+                                                                }
                                                              
-                                                         }
+                                                            }
                                                          
-                                                   }    
+                                                      }    
                                                                                                                                      
-                                              }
+                                                 }
                                               
                                            }                                                                                      
                                            
