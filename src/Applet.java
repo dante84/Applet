@@ -3,19 +3,22 @@
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.HeadlessException;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -37,7 +40,11 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingWorker;
 import javax.jnlp.ExtendedService;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -48,20 +55,38 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
  
 public class Applet extends JPanel {
      
-       private JLabel eRutaExcel,eMes,eTExamen,eSTExamen,eExcel;
-       private JPanel panelAplicacion,panelExcel;              
+       private static JFrame frame;                                           
+       private JLabel eRutaExcel,eMes,eTExamen,eSTExamen,eExcel,eProcesando;
+       private JPanel panelAplicacion,panelExcel,panelDown;              
        private JTextField cRuta,cExcel;
-       private JButton bExaminar,bProcesarAplicaciones,bExcel;
+       private JButton bExaminar,bProcesarAplicaciones,bExcel,bSalvarDatos;
        private JFileChooser fileChooser;
-       private ArrayList<Object> fechas,instituciones,cve_instr,aplicacionesInexistentes,appDatMControlNoDat;
-       private Map<Object,String> registro,respuesta;
-       private Map<Object,Integer> aplicaciones,imagEncR,imagEncS;
+       private ArrayList<Object> cve_instr,appDatMControlNoDat,alAplicacionesDatsErraticos = new ArrayList<>();  
+       private Map<Object,Date> fechas;
+       private Map<Object,String> registro,respuesta,instituciones,mapaTipoAplicacion,mapaSubtipoAplicacion;
+       private Map<Object,Object> aplicaciones,imagEncR,imagEncS,mapaValoresMControlR,mapaValoresMControlS,mapaPosicionesRegistro = new HashMap<>(),
+                                  mapaPosicionesRegistroBPM = new HashMap<>(),mapaPosicionesRegistroMcontrol = new HashMap<>(),
+                                  mapaPosicionesRespuesta = new HashMap<>(),mapaPosicionesRespuestaBPM = new HashMap<>(),
+                                  mapaPosicionesRespuestaMcontrol = new HashMap<>();
+       private Map<Object,Object> mapaAplicacionesSinDatif = new HashMap<>(),aplicacionesInexistentes,
+                                  mapaAplicacionesPosicionesDesfazadas = new HashMap<>(),
+                                  mapaCantidadImagenes = new HashMap<>();
+       private ArrayList<Object[]> alResultados = new ArrayList<>();
        private File aExcel;
        private ExtendedService extendedService;
        private JComboBox<String> comboMes,comboTipoInstr,comboNombres_cortos;
-       private GridBagConstraints gbc;
+       private JTable tresultados;
+       private DefaultTableModel dftm;
+       private JScrollPane sResultados;
+       private GridBagConstraints gbc;      
+       private SimpleDateFormat sdf;
        
-       private final String[] meses   =     {"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"};
+       private int posicionesExcel = 0,ndr = -1,nds = -1;
+       private int numeroPosiciones = 0;       
+      
+       
+       private final String[] meses   = {"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"};
+       private final String[] months  = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
        
        private final String[] tiposInstrumento = {"AC286","ACRESEC","ACRETSU","ACUERDO","ALI","CEAACES","CONALEP","DGESPE","ECCYPEC","ECELE","ECODEMS","EGAL",
                                                   "EGEL","EGETSU","EPROM","ESPECIALES","EUC","EUCCA","EXANI","EXTRA","IFE","LEPRE_LEPRI","MCEF","Metropolitano",                                                  
@@ -229,15 +254,45 @@ public class Applet extends JPanel {
                                          {192}
                                        };              
        
-       private Applet() throws IOException, InvalidFormatException{                                   
+       private Applet() throws IOException,InvalidFormatException{                                   
                
                setLayout(new GridBagLayout());
                
                gbc = new GridBagConstraints();
                
+               eProcesando = new JLabel("En espera");
+               
+               tresultados = new JTable(new DefaultTableModel());
+               dftm = new DefaultTableModel();
+               dftm.addColumn("No");
+               dftm.addColumn("No aplicacion");
+               dftm.addColumn("Existe");
+               dftm.addColumn("Datif");
+               dftm.addColumn("No Imag Reg");
+               dftm.addColumn("No Imag Res");
+               dftm.addColumn("No PReg");
+               dftm.addColumn("No PReg BPM"); 
+               dftm.addColumn("No PReg MControl");
+               dftm.addColumn("No PRes");
+               dftm.addColumn("No PRes BPM"); 
+               dftm.addColumn("No PRes MControl");
+               dftm.addColumn("Estado");
+               dftm.addColumn("Observaciones");
+               
+               tresultados.setModel(dftm);                                      
+               sResultados = new JScrollPane(tresultados);     
+               
+               gbc = new GridBagConstraints();         
+               gbc.gridx = 0;
+               gbc.gridy = 2;          
+               gbc.weightx = 0.1;
+               gbc.fill = GridBagConstraints.HORIZONTAL;
+               gbc.insets = new Insets(5,5,5,5);                                                                                                                                    
+               add(sResultados,gbc);
+                                                     
                panelAplicacion = new JPanel(new GridBagLayout());
                panelExcel = new JPanel(new GridBagLayout());
-               
+               panelDown = new JPanel(new GridBagLayout());
                setSize(700,400);
                
                eRutaExcel = new JLabel("Ruta :");                              
@@ -249,6 +304,7 @@ public class Applet extends JPanel {
                panelAplicacion.add(eRutaExcel,gbc);
                
                cRuta = new JTextField(40);
+               cRuta.setEditable(false);
                gbc = new GridBagConstraints();
                gbc.gridx = 1;
                gbc.gridy = 0;
@@ -282,7 +338,7 @@ public class Applet extends JPanel {
                        }
                       
                );
-               
+                                             
                gbc = new GridBagConstraints();
                gbc.gridx = 4;
                gbc.gridy = 0;         
@@ -323,77 +379,76 @@ public class Applet extends JPanel {
                                 public void actionPerformed(ActionEvent e) {                                                                                                                    	                            	                                          
                                                                                                               
                                        SwingWorker swbe; 
-                                    swbe = new SwingWorker() {
-                                    @Override
-                                    protected Object doInBackground() throws Exception {
+                                       swbe = new SwingWorker() {
+                                       @Override
+                                       protected Object doInBackground() throws Exception {
                                                                                              
-                                              panelAplicacion.remove(comboNombres_cortos);
+                                                 panelAplicacion.remove(comboNombres_cortos);
                         
-                                              String itExamen = (String)comboTipoInstr.getSelectedItem();
-                                              System.out.println("indice = " + itExamen);
+                                                 String itExamen = (String)comboTipoInstr.getSelectedItem();                                                
                         
-                                              gbc = new GridBagConstraints();
+                                                 gbc = new GridBagConstraints();
                         
-                                              comboNombres_cortos = new JComboBox<>(traeNombresCortos(itExamen));                                      
-                                              gbc = new GridBagConstraints();
-                                              gbc.gridx = 1;
-                                              gbc.gridy = 2;                                            
-                                              gbc.gridwidth = 3;
-                                              gbc.insets = new Insets(5,5,5,5);
-                                              gbc.anchor = GridBagConstraints.WEST;               
-                                              panelAplicacion.add(comboNombres_cortos,gbc);                                               
-                                              panelAplicacion.revalidate();
-                                              panelAplicacion.repaint();   
+                                                 comboNombres_cortos = new JComboBox<>(traeNombresCortos(itExamen));                                      
+                                                 gbc = new GridBagConstraints();
+                                                 gbc.gridx = 1;
+                                                 gbc.gridy = 2;                                            
+                                                 gbc.gridwidth = 3;
+                                                 gbc.insets = new Insets(5,5,5,5);
+                                                 gbc.anchor = GridBagConstraints.WEST;               
+                                                 panelAplicacion.add(comboNombres_cortos,gbc);                                               
+                                                 panelAplicacion.revalidate();
+                                                 panelAplicacion.repaint();   
                                                
-                                              return null;
+                                                 return null;
                               
-                                    }
+                                       }
                                                                                                                                                         
-                                    private String[] traeNombresCortos(String item){ 
+                                       private String[] traeNombresCortos(String item){ 
 
-                                            Connection c;
-                                            Statement s;
-                                            String[] nombres_cortosArray = null;
+                                               Connection c;
+                                               Statement s;
+                                               String[] nombres_cortosArray = null;
 
-                                            try{
+                                               try{
    
-                                                Class.forName("com.mysql.jdbc.Driver");
-                                                c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
+                                                   Class.forName("com.mysql.jdbc.Driver");
+                                                   c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
    
-                                                String select = "select nom_corto from datos_examenes where tipo_instr = '" + item + "'";
-                                                s = c.createStatement();
-                                                ResultSet rs = s.executeQuery(select);
+                                                   String select = "select nom_corto from datos_examenes where tipo_instr = '" + item + "'";
+                                                   s = c.createStatement();
+                                                   ResultSet rs = s.executeQuery(select);
                                          
-                                                List<String> nombres_cortos = new ArrayList<>();
+                                                   List<String> nombres_cortos = new ArrayList<>();
                                                                                                                                                                                                    
-                                                while( rs.next() ){
+                                                   while( rs.next() ){
                                                          
-                                                       String nom_corto  = rs.getString(1);
-                                                       if( nom_corto != null ){
-                                                           nombres_cortos.add(nom_corto);
-                                                       }
+                                                          String nom_corto = rs.getString(1);
+                                                          if( nom_corto != null ){
+                                                              nombres_cortos.add(nom_corto);
+                                                          }
           
-                                                }
+                                                   }
                                                                                                                                                                                                                                             
-                                                nombres_cortosArray = new String[nombres_cortos.size()];
-                                                int i = 0;
-                                                for(Object o : nombres_cortos.toArray()){
-                                                    nombres_cortosArray[i] = (String)o;
-                                                    i++;
-                                                }      
+                                                   nombres_cortosArray = new String[nombres_cortos.size()];
+                                                   int i = 0;
+                                                   for(Object o : nombres_cortos.toArray()){
+                                                       nombres_cortosArray[i] = (String)o;
+                                                       i++;
+                                                   }      
                                                 
-                                                s.close();
-                                                c.close();
+                                                   s.close();
+                                                   c.close();
                      
-                                            }catch(Exception e){ e.printStackTrace(); }
+                                               }catch(Exception e){ e.printStackTrace(); }
                                               
-                                            return nombres_cortosArray;       
+                                               return nombres_cortosArray;       
 
-                                    } 
+                                       } 
                                     
-                        };
+                                     };
                                        
-                                       swbe.execute();
+                                   swbe.execute();
                                        
                                 }
                             
@@ -435,17 +490,18 @@ public class Applet extends JPanel {
                gbc = new GridBagConstraints();
                gbc.gridx = 0;
                gbc.gridy = 0;               
-               gbc.insets = new Insets(5,5,5,0);
+               gbc.insets = new Insets(5,5,5,5);
                gbc.anchor = GridBagConstraints.WEST;               
                panelExcel.add(eExcel,gbc);
                
                cExcel = new JTextField(40);  
+               cExcel.setEditable(false);
                gbc = new GridBagConstraints();
                gbc.gridx = 1;
                gbc.gridy = 0;
                gbc.gridwidth = 2;
                gbc.anchor = GridBagConstraints.WEST;               
-               gbc.insets = new Insets(5,5,5,5);                                           
+               gbc.insets = new Insets(5,15,5,8);                                           
                panelExcel.add(cExcel,gbc);                             
                
                bExcel = new JButton("Examinar");                           
@@ -506,7 +562,9 @@ public class Applet extends JPanel {
 
                        @Override
                        public void actionPerformed(ActionEvent e) {
-                                                                                            
+                                                     
+                              Applet.this.bProcesarAplicaciones.setEnabled(false);
+                              
                               SwingWorker<Void,Void> chamber;
                               chamber = new SwingWorker<Void,Void>() {
                                                                 
@@ -514,20 +572,26 @@ public class Applet extends JPanel {
                               
                               Statement s;
                               String cte = (String)comboTipoInstr.getSelectedItem();
-                              String cste = (String)comboNombres_cortos.getSelectedItem();                                                                                
-
+                              String cste = (String)comboNombres_cortos.getSelectedItem();   
+                              
+                              int h = 1;
+                              
                               @Override
                               protected Void doInBackground() {                                                                                                                         
                                                      
+                                        Applet.this.eProcesando.setText("Procesando");
+                                        
                                         String rutaExcel = cExcel.getText().trim();
                                         String rutaDats = cRuta.getText().trim();
              
-                                        aplicaciones  = new HashMap<Object,Integer>();
-                                        fechas        = new ArrayList<>();
-                                        instituciones = new ArrayList<>();
-                                        registro      = new HashMap<>();
-                                        respuesta     = new HashMap<>();
-                                        cve_instr     = new ArrayList<>();
+                                        aplicaciones          = new HashMap<>();
+                                        fechas                = new HashMap<>();
+                                        instituciones         = new HashMap<>();
+                                        registro              = new HashMap<>();
+                                        respuesta             = new HashMap<>();
+                                        cve_instr             = new ArrayList<>();
+                                        mapaTipoAplicacion    = new HashMap<>();
+                                        mapaSubtipoAplicacion = new HashMap<>();
                           
                                         if( rutaExcel.equals("") ){
                                             JOptionPane.showMessageDialog(
@@ -550,7 +614,7 @@ public class Applet extends JPanel {
                                         try{
                                                                                         
                                             obtenDatos();
-                                            //cuentaImagenes();  
+                                            cuentaImagenes();  
                                             cuentaPosiciones();
                                             
                                        }catch(Exception e){ e.printStackTrace(); }                                                                                                                                                                      
@@ -559,33 +623,26 @@ public class Applet extends JPanel {
                        
                               }
                 
-                              private void obtenDatos() throws Exception{
+                              private void obtenDatos() {
                        
                                       Statement statement = conectaBase();                        
-                                      String select = "select cve_instr from datos_examenes";
-                                      int h = 1;
-                                                              
-                                      System.out.println("Dentro del try antes del workbook " + aExcel.getAbsolutePath());                                                                                      
-                                                                        
+                                      String select = "select cve_instr from datos_examenes";                                      
+                                                                                                                                      
                                       try{  wb = WorkbookFactory.create(aExcel); }
                                       catch(Exception e){ e.printStackTrace(); }
                               
                                       Sheet hoja = wb.getSheetAt(0);      
                               
-                                      System.out.println("Nombre hoja " + hoja.getSheetName());
-                              
+                                      
                                       Iterator<Row> rowIt = hoja.rowIterator();                                    
                                       rowIt.next();
              
-                                      DateFormat df = new SimpleDateFormat("dd-MMM-yy",Locale.ENGLISH);                    
-             
-                                      System.out.println("cte " + cte + " cste " + cste);             
-                        
+                                      sdf = new SimpleDateFormat("yyyy-MM-dd",Locale.ENGLISH);                    
+                                                 
                                       try{
                                                    
                                           select += " where nom_corto = '" + cste + "'" ;
-                                          System.out.println(select);
-                                          
+                                           
                                           ResultSet rs = statement.executeQuery(select);
                                           
                                           while ( rs.next() ){
@@ -611,11 +668,25 @@ public class Applet extends JPanel {
                                                        double noRegistrados     = noRegistradosCell.getNumericCellValue();
                                                        double noRespuesta       = noRespuestaCell.getNumericCellValue();                                                                                  
                          
-                                                       String valor = cFechaInicio.getStringCellValue().trim();
+                                                       String valor = cFechaInicio.getStringCellValue().trim();                                                       
                               
                                                        if( valor.length() < 7 ){ continue; }
-
-                                                       Date fechaExcel = df.parse(valor);
+                                                       
+                                                       String mes = valor.substring(3,6);
+                                                       String month = "";
+                                                       
+                                                       for(int i = 0; i <= months.length - 1; i++){
+                                                           if( months[i].equals(mes) ){
+                                                               month = String.valueOf(i + 1);
+                                                               if(month.length() - 1 == 0){
+                                                                  month = "0" + month;
+                                                               }
+                                                           }
+                                                       }
+                                                       
+                                                       String fecha = "20" + valor.substring(7,9) + "-" +  month  + "-" + valor.subSequence(0,2);                                                     
+                                                       
+                                                       Date fechaExcel = sdf.parse(fecha);
                                                        Calendar c = Calendar.getInstance();
                                                        c.setTime(fechaExcel);
                                                        int fem = c.get(Calendar.MONTH);                                                                                                                    
@@ -626,17 +697,20 @@ public class Applet extends JPanel {
                                                            Cell cApp   = r.getCell(0);
                                                            Object oapp = cApp.getStringCellValue();                                                                                                                                                                                            
                                                                                    
-                                                           if( oapp != null ){                                                      
-                                                               System.out.println( h + " -  " + oapp + " " + fechaExcel + " " + noRegistrados + " " + 
-                                                                                   noRespuesta + " " + scInstitucion + " " + scClave_instr );                                                                                                                                 
+                                                           if( oapp != null ){                                 
+                                                               
                                                                h++;
                                                
+                                                               System.out.println(h + " " + oapp + " " + scClave_instr + " " + valor + " " + fecha + " " + 
+                                                                                  fechaExcel);
                                                                aplicaciones.put(oapp,scClave_instr);   
-                                                               fechas.add(fechaExcel);
+                                                               fechas.put(oapp,fechaExcel);
                                                                registro.put(oapp,String.valueOf(noRegistrados));
                                                                respuesta.put(oapp,String.valueOf(noRespuesta));
-                                                               instituciones.add(scInstitucion);
-                                                               cve_instr.add(scClave_instr);
+                                                               instituciones.put(oapp,scInstitucion);
+                                                               cve_instr.add(scClave_instr);                                                               
+                                                               mapaTipoAplicacion.put(oapp,scTipoAplicacion);
+                                                               mapaSubtipoAplicacion.put(oapp,scSTipoAplicacion);
                                                    
                                                            }
                                                                                                                                                                                                              
@@ -644,74 +718,65 @@ public class Applet extends JPanel {
                                   
                                                   }
                                                   
-                                          }
-                                          
-                                  }catch(Exception e){ e.printStackTrace(); }
+                                          }                                                                                    
+                                                                                                                              
+                                  }catch(SQLException | NumberFormatException | ParseException e){ e.printStackTrace(); }                                                                                                                                                   
                                       
                               }
                               
                               private void cuentaImagenes(){
                                      
                                       String ruta = cRuta.getText().trim();                                      
-                                      aplicacionesInexistentes = new ArrayList<>();                                      
-                                      
-                                      int i = 1;
+                                      aplicacionesInexistentes = new HashMap<>();                                      
+                                      imagEncR = new HashMap<>();
+                                      imagEncS = new HashMap<>();
+                                                                            
                                       int imagenesExistenR = 0;
                                       int imagenesExistenS = 0;
+                                      int k = 1;
                                       
                                       Set<Object> ks = aplicaciones.keySet();
                                       Iterator<Object> it = ks.iterator();
                                       
                                       try{
-                                                                                
+                                                                                                                    
                                           while( it.hasNext() ){
                                           
+                                                 Applet.this.eProcesando.setText("Procesando imagenes - aplicacion " + k + " de " + h);
                                                  Object o = it.next();
-                                                 String numeroAplicacion = (String)o;                                                                                      
+                                                 String numeroAplicacion = (String)o;                                                  
+                                                 
                                                  File appDir = new File(ruta + "\\" + numeroAplicacion);
-                                                 boolean existe = appDir.exists();
-                                                 if( !existe ){ aplicacionesInexistentes.add(o); }
+                                                 boolean existe = appDir.exists();                                                                                                  
+                                                 
+                                                 if( !existe ){ aplicacionesInexistentes.put(o,o); }                                                 
                                                  else{
                                                       boolean esDir = appDir.isDirectory();                       	  
                                                       if( esDir ){                                                                                                                                  
                                                           File[] archivos = appDir.listFiles();                                                                                                                          
                                                           for(File f : archivos){                                                                                                      
-                                                              String nombreArchivo = f.getName();                                                                                                
-                                                              if( nombreArchivo.endsWith(".tif") && 
-                                                                  ( nombreArchivo.startsWith("R") || nombreArchivo.startsWith("r") )){ 
-                                                                    imagenesExistenR++; 
-                                                              }                                                                                                                                                                                                                                                      
+                                                              String nombreArchivo = f.getName();  
+                                                           
+                                                              if( nombreArchivo.endsWith(".tif") ){ imagenesExistenR++; }                                                                                                                                                                                                                                                      
                                                               
-                                                              if( nombreArchivo.endsWith(".tif") && 
-                                                                  ( nombreArchivo.startsWith("s") || nombreArchivo.startsWith("S") )){ 
-                                                                  imagenesExistenS++; 
-                                                              }                                                                                                                                                                                                                                                      
+                                                              if( nombreArchivo.endsWith(".tif") ){ imagenesExistenS++; }
+                                                              
                                                               
                                                          }
                                                           
-                                                         try{
-                                                             
-                                                             int rreales,sreales;
-                                                             int cve_instr = aplicaciones.get(o);
-                                                             Statement s = conectaBase();                                                             
-                                                             ResultSet rs = 
-                                                                       s.executeQuery(
-                                                                          "select canImaReg,canImaRes from datos_examenes where cve_instr = " + cve_instr
-                                                                       );
-                                                             
-                                                             rs.next();
-                                                             rreales = rs.getInt(1);
-                                                             rs.next();
-                                                             sreales = rs.getInt(2);
-                                                             
-                                                             s.close();
-                                                             
-                                                         }catch(Exception e){ e.printStackTrace(); }
-                                                          
+                                                                                                                   
                                                       }                                           
                                                                                       
                                                  }
+                                                 
+                                                 imagEncR.put(o,imagenesExistenR);
+                                                 imagEncS.put(o,imagenesExistenS);                                                                                                                   
+                                                 
+                                                 imagenesExistenR = 0;
+                                                 imagenesExistenS = 0;
                                      
+                                                 k++;
+                                                 
                                           }
                                           
                                       }catch(Exception e){ e.printStackTrace(); }    
@@ -719,23 +784,29 @@ public class Applet extends JPanel {
                               }
                               
                               private void cuentaPosiciones(){
-                                     
-                                      System.out.println("En cuentaPosiciones");                                      
+                                                                       
                                       String rutaDatif = cRuta.getText().trim();  
                                       appDatMControlNoDat = new ArrayList<>();
+                                      mapaValoresMControlR = new HashMap<>();
+                                      mapaValoresMControlS = new HashMap<>();                                                                            
                                       
                                       Set<Object> ks = aplicaciones.keySet();
                                       Iterator<Object> it = ks.iterator();
                                       
+                                      int k = 1;
                                       while( it.hasNext() ){
                                           
-                                             Object o = it.next();
-                                             if( aplicacionesInexistentes.contains(o) ){ continue; }
+                                             Applet.this.eProcesando.setText("Procesando dats - aplicacion " + k + " de " + h);
+                                             Object o = it.next();                                                                                     
+                                             
+                                             if( aplicacionesInexistentes.containsKey(o) ){ continue; }                                             
+                                             
                                              String aplicacion = (String)o;
                                              rutaDatif += "\\" + aplicacion + "\\DATIF";
-                                             File datif = new File(rutaDatif);
+                                             File datif = new File(rutaDatif);                                                                                          
                                            
-                                             boolean existeDatif = datif.exists();
+                                             boolean existeDatif = datif.exists();                                                                                     
+                                             
                                              if( existeDatif ){
                                                  String Datif = datif.getAbsolutePath();                     
                                                  File[] archivos = datif.listFiles(                            		   
@@ -753,8 +824,10 @@ public class Applet extends JPanel {
                                                  int r = -1;
                                                  int S = -1;
                                                  int la = (archivos.length - 1);                          
-                                                                        
-                                                 if( la == -1 && ( registro.containsKey(o) || respuesta.containsKey(o) ) ){      
+                                                                                                                    
+                                                 if( la == -1 && 
+                                                     ( ( registro.containsKey(o)  && Double.valueOf( registro.get(o)  ) > 0  ) || 
+                                                     ( ( respuesta.containsKey(o) && Double.valueOf( respuesta.get(o) ) > 0) ) ) ) {      
                                                      System.out.println("No hay dats " + o);
                                                      appDatMControlNoDat.add(o);
                                                      continue;
@@ -767,9 +840,7 @@ public class Applet extends JPanel {
                                
                                                       for( int i = 0; i <= nombreArchivo.length() - 5; i++ ){
                                                            subNombreArchivo += nombreArchivo.charAt(i);
-                                                      }
-                                                   
-                                                      System.out.println(nombreArchivo + " " + subNombreArchivo);
+                                                      }                                                                                                        
                                                               
                                                       char ci = nombreArchivo.charAt(0);
                                                                                   
@@ -787,42 +858,442 @@ public class Applet extends JPanel {
                                                               }
                                                           }                                                                                          
                                    
-                                                      }else{
-                                                       
-                                                            if( la == m ){
-                                                             
-                                                                if( ( r == -1 && registro.containsKey(o) ) || ( S == -1 && respuesta.containsKey(o) ) ){
-                                                                                                                                                                                                                                                                 
-                                                                }
-                                                             
-                                                            }
-                                                         
-                                                      }    
+                                                      }else{                                     
+                                                            alAplicacionesDatsErraticos.add(o);
+                                                            continue;
+                                                      }   
                                                                                                                                      
                                                  }
+                                                                                                 
+                                                 if( respuesta.containsKey(o) && S == -1 && Double.valueOf( respuesta.get(o)) > 0 ){
+                                                     System.out.println("No hay dats de respuestas en " + o);
+                                                     appDatMControlNoDat.add(o);
+                                                 }
+                                                                                                  
+                                                 if( registro.containsKey(o) && r == -1 && Double.valueOf(registro.get(o)) > 0){
+                                                     System.out.println("No hay dats de registros en " + o);
+                                                     appDatMControlNoDat.add(o);
+                                                 }
+                                                 
+                                                 if( la == -1 ){ mapaAplicacionesSinDatif.put(o,o); }                     
+                                                 else{     
+                                                      int i = 0;
+                                                      while( i <=  r ){                               
+                                                             String nombreArchivo = archivos[i].getName();                                                                                                       
+                                                             mapaValoresMControlR.put(o,leeArchivo(nombreArchivo,rutaDatif,(String)o,i,r,"R"));
+                                                             i++;
+                                                      }                                                            
+                              
+                                                      while( i <= la ){                               
+                                                             String nombreArchivo = archivos[i].getName();                                                                                                                                                                                    
+                                                             mapaValoresMControlS.put(o,leeArchivo(nombreArchivo,rutaDatif,(String)o,i,la,"S"));
+                                                             i++;
+                                                      }
+                              
+                                                 }
                                               
-                                           }                                                                                      
-                                           
+                                           }else{ mapaAplicacionesSinDatif.put(o, o); }                                                                                     
+                                                                                      
+                                           rutaDatif = cRuta.getText().trim();
+                                           k++;
+                                                                                              
                                       }
                                    
                               }
+                              
+                              @SuppressWarnings("resource")
+                              public int leeArchivo(String nombreArchivo,String rutaDatif,Object f,int i,int noArchivos,String tipo){               
+        
+                                     String linea = "";                                                 
+                                     int temp;                                                                                                                                                                                                         
+              
+                                     try{         
+                                                      
+                                         File f1 = new File(rutaDatif + "\\" + nombreArchivo);                  
+                                         FileInputStream fis = new FileInputStream(f1);                       
+                     
+                                         while(true){
+                   
+                                               temp = fis.read();                                                                   
+                                               
+                                               if( temp == -1 ){                              
+                                                   ndr++;
+                                                   break;
+                                              }
+                     
+                                              int digitoSub;
+                                              linea += (char)temp;                                                                                                          
+                     
+                                              if( temp == '\n' ){ 
+                                                        
+                                                  String sub = linea.substring(3,9);                            
+                                                  digitoSub  = Integer.parseInt(sub);                               
+                         
+                                                  if( digitoSub == 0 ){ numeroPosiciones--; }
+                         
+                                                  numeroPosiciones++;                                                                                
+                                                         
+                                                  if( digitoSub != numeroPosiciones ){ 
+                            	                      mapaAplicacionesPosicionesDesfazadas.put(f,f);
+                                                  }
+                                                                                         
+                                                  linea = "";
+                         
+                                              }                                                        
+                     
+                                         }                                                                                                         
+                                         
+                                         posicionesExcel = mcExcelPosiciones((String)f, "2012",tipo);                                                                                          
+                                      
+                                         if( i == noArchivos ){ 
+                   
+                                             int posiciones = revisaBpmPosiciones((String)f, "2012",tipo);
+                                                                                                                                                                           
+                                             if( tipo.equals("R") ){                                   	 
+                                                 mapaPosicionesRegistro.put(f,numeroPosiciones);
+                                                 mapaPosicionesRegistroBPM.put(f,posiciones);
+                                                 mapaPosicionesRegistroMcontrol.put(f,posicionesExcel);
+                                             }else{
+                                                   mapaPosicionesRespuesta.put(f, numeroPosiciones);
+                                                   mapaPosicionesRespuestaBPM.put(f, posiciones);
+                                                   mapaPosicionesRespuestaMcontrol.put(f, posicionesExcel);
+                                             }  
+                         
+                                             numeroPosiciones = 0;
+                                                    
+                                         }                                   
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+                                     }catch(IOException | NumberFormatException e){ e.printStackTrace(); }                              
+                                                  
+                                     return posicionesExcel;
+              
+                              }
+                              
+                              public int mcExcelPosiciones(String app,String año,String tipo){ 
+   
+                                     int posiciones = 0;                                                                               
+        
+                                     try{
+            	  
+                                         //Workbook wb = WorkbookFactory.create(new File("C:\\copiamcontrl.xlsx"));
+                                         Sheet hoja = wb.getSheetAt(0);                  
+                                         Iterator<Row> rowIt = hoja.rowIterator();                                                 
+                                         
+                                         rowIt.next();
+                                         for(Iterator<Row> it = rowIt; it.hasNext(); ){
+                                             Row r = it.next();
+                                             Cell cAplicacion = r.getCell(0);
+                                             String cvc = cAplicacion.getStringCellValue().trim();                                             
+                                             if( cvc.matches("^[0-9]+$") ){
+                                                 if( Integer.parseInt(cvc) == Integer.parseInt(app) ){                                                     
+                                                     Cell cPosiciones;
+                                                     if( tipo.equals("R") ){ cPosiciones = r.getCell(21); }
+                                                     else{ cPosiciones = r.getCell(22);}
+                                                     posiciones += cPosiciones.getNumericCellValue();                     
+                                                 }
+                                             }
+                                             
+                                         }
+         
+                                     }catch(Exception e){ e.printStackTrace(); }                                          
+                                     
+                                     return posiciones;
+     
+                              }    
+                              
+                              public int revisaBpmPosiciones(String aplicacion,String año,String tipo){
+     
+                                     Connection c;
+                                     Statement s;
+                                     ResultSet rs;                                                        
+     
+                                     int posiciones = 0;
+      
+                                     try{
+     
+                                         Class.forName("oracle.jdbc.OracleDriver");                   
+                                         c = DriverManager.getConnection("jdbc:oracle:thin:@10.10.2.10:1521:ceneval","dpoc","bpm_DPOC");
+                        
+                                         s = c.createStatement();
+                  
+                                         String select = "";
+                  
+                                         if( tipo.equals("R") ){ 
+                                             select += "select \"Registrado_desglose\",\"Registrado\" from dpoc where NUM_APLIC = '" + 
+                                             aplicacion + "' and extract(year from \"fecha_de_inicio\") ='" + año + "'";
+                                         }else{
+                	                        select += "select \"Aplicados_desglose\",\"Aplicados\" from dpoc where NUM_APLIC = '" + aplicacion + "' and " + 
+                                                          " to_char(\"fecha_de_inicio\",'YYYY') = '" + año + "'";
+                                         }
+                  
+                                         rs = s.executeQuery(select);
+                                     
+                                         int i = 0;                      
+             
+                                         while( rs.next() ){
+                                                i++;
+                                                if( i > 1 ){                             
+                                                    posiciones =  rs.getInt(1);                             
+                                                    break;
+                                                }else{ posiciones = rs.getInt(2); }                             
+                    
+                                         }         
+         
+                                     }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
+     
+                                     return posiciones;
+   
+                              }
+
+                              public int revisaBpmAplicados(String aplicacion,String año){
+  
+                                     Connection c;
+                                     Statement s; 
+                                     ResultSet rs;                            
+     
+                                     int aplicados = 0;
+     
+                                     try{
+     
+                                         Class.forName("oracle.jdbc.OracleDriver");                   
+                                         c = DriverManager.getConnection("jdbc:oracle:thin:@10.10.2.10:1521:ceneval","dpoc","bpm_DPOC");
+                                         s = c.createStatement();                                    
+                 
+                                         rs = s.executeQuery("select \"Aplicados_desglose\",\"Aplicados\" from dpoc where NUM_APLIC = '" + aplicacion + "' and " + 
+                                                             " to_char(\"fecha_de_inicio\",'YYYY') = '" + año + "'");              
+     
+                                         int i = 0;                      
+                                         while( rs.next() ){                  
+                                                i++;
+                                                if( i > 1 ){                             
+                                                    aplicados = rs.getInt(1);
+                                                    break;
+                                                }else{ aplicados = rs.getInt(2); }    
+                                         }
+         
+                                     }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
+     
+                                     return aplicados;
+   
+                              }             
                 
                               private Statement conectaBase(){
                     
                                       Connection c;
-                                      Statement s = null;
+                                      Statement sta = null;
                      
                                       try{
                 
                                           Class.forName("com.mysql.jdbc.Driver");
                                           c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
-                                          s = c.createStatement();
+                                          sta = c.createStatement();
                             
                                       }catch(Exception e ){ e.printStackTrace(); }
                         
-                                      return s;
+                                      return sta;
                       
                               }
+                              
+                              @Override
+                              public void done(){                                                                                                                                                   
+                                     
+                                     Set<Object> ks = aplicaciones.keySet();
+                                     Set<Object> setAne = aplicacionesInexistentes.keySet();    
+                                     Set<Object> setAsd = mapaAplicacionesSinDatif.keySet();                  
+                                     Iterator<Object> it = ks.iterator();
+                                     Object[] aResultados;
+                                     
+                                     boolean s1 = false;
+                                     boolean s2 = false;   
+                                                    
+                                     int i = 0;
+                                     while( it.hasNext() ){
+            	                              
+                                            i++;
+       	                                    ArrayList<Object> ao =  new ArrayList<>();   
+                                            ArrayList<Object> aoq = new ArrayList<>();
+                                            Object o = it.next();
+                                            ao.add(i);
+       	                                    ao.add(o);   
+                                            aoq.add(o);
+                                            aoq.add(mapaTipoAplicacion.get(o));
+                                            aoq.add(mapaSubtipoAplicacion.get(o));
+                                            aoq.add(sdf.format(fechas.get(o)));
+                                            aoq.add(sdf.format(new Date()));
+                                           	               	         
+        	                            int tamañoNoEncontradas = aplicacionesInexistentes.size() - 1;
+       	                                    int tamañoSinDatif = mapaAplicacionesSinDatif.size() - 1;
+       	                                    int tamañoSinDats = appDatMControlNoDat.size() - 1;
+       	                                    int tamañoCantidadImagenesR = imagEncR.size() - 1;
+                                            int tamañoCantidadImagenesS = imagEncS.size() - 1;
+       	                                    int tamañoPosicionesRegistro = mapaPosicionesRegistro.size() -1;
+       	                                    int tamañoPosicionesRegistroBPM = mapaPosicionesRegistroBPM.size() -1;
+       	                                    int tamañoPosicionesRegistroMControl = mapaPosicionesRegistroMcontrol.size() -1;
+       	                                    int tamañoPosicionesRespuesta = mapaPosicionesRespuesta.size() - 1;
+       	                                    int tamañoPosicionesRespuestaBPM = mapaPosicionesRespuesta.size() - 1;
+       	                                    int tamañoPosicionesRespuestaMControl = mapaPosicionesRespuesta.size() - 1;
+                                            int tamañoAplicacionesDatsErraticos = alAplicacionesDatsErraticos.size() - 1;       	                	                	                                                            
+                                                                                        
+        	                            ao.add(agregaDato(aplicacionesInexistentes, tamañoNoEncontradas,o,false,"Inexistentes"));        	 		
+                                            if( !aplicacionesInexistentes.containsKey(o) ){
+                                                Object osd = agregaDato(mapaAplicacionesSinDatif, tamañoSinDatif,o,false,"SinDatif");
+           	                                ao.add(osd);           	  	       	                                                                                              
+                                                Object ir = agregaDato(imagEncR, tamañoCantidadImagenesR,o,true,"ImagenesR");
+           	                                ao.add(ir);           	  
+                                                aoq.add(ir);
+                                                Object is = agregaDato(imagEncS, tamañoCantidadImagenesS,o,true,"ImagenesS");
+                                                ao.add(is);           	  
+                                                aoq.add(is);
+                                                Object pr = agregaDato(mapaPosicionesRegistro, tamañoPosicionesRegistro,o,true,"PR");
+              	                                ao.add(pr);                              	 
+                                                aoq.add(pr);
+                                                Object prb = agregaDato(mapaPosicionesRegistroBPM, tamañoPosicionesRegistroBPM,o,true,"PRB");                                                
+              	                                ao.add(prb);         	  	                	 
+                                                aoq.add(prb);
+                                                Object prm = agregaDato(mapaPosicionesRegistroMcontrol, tamañoPosicionesRegistroMControl,o,true,"PRM");
+                                                ao.add(prm);                        	 
+                                                aoq.add(prm);
+                                                Object pres = agregaDato(mapaPosicionesRespuesta, tamañoPosicionesRespuesta, o, true,"PS");
+                                                ao.add(pres);             	  		 
+                                                aoq.add(pres);
+                                                Object presb = agregaDato(mapaPosicionesRespuestaBPM, tamañoPosicionesRespuestaBPM, o, true,"PSB");
+                                                ao.add(presb);                                    	       	                	    	                    	       	                	         
+                                                aoq.add(presb);
+                                                Object presm = agregaDato(mapaPosicionesRespuestaMcontrol, tamañoPosicionesRespuestaMControl, o, true,"PSM");
+                                                ao.add(presm);                                                                  
+                                                aoq.add(presm);                                                
+                                                aoq.add(cRuta.getText().trim());
+                                                aoq.add(instituciones.get(o));
+       	        	                                                                                 
+                                                if( mapaPosicionesRegistro.containsKey(o) && mapaPosicionesRegistroMcontrol.containsKey(o) ){                                             
+                                                    if( (int)mapaPosicionesRegistro.get(o) != (int)mapaPosicionesRegistroMcontrol.get(o) ){ 
+                                                        s1 = true; 
+              	                                    }                       
+                                                }
+                   	       	                    	     
+                                                if( mapaPosicionesRespuesta.containsKey(o) && mapaPosicionesRespuestaMcontrol.containsKey(o) ){
+                                                    if( (int)mapaPosicionesRespuesta.get(o) != (int)mapaPosicionesRespuestaMcontrol.get(o) ){
+                                                        s2 = true; 
+                                                    }
+                                                }
+                                              
+                                                System.out.println(o + " " + setAne.contains(o) + " " + setAsd.contains(o) + " " +  s1 + " " + s2 + " " +
+                                                                   alAplicacionesDatsErraticos.contains(o) + " " + appDatMControlNoDat.contains(o));
+                                                if( setAne.contains(o) || setAsd.contains(o) || s1 || s2 || alAplicacionesDatsErraticos.contains(o) || 
+                                                    appDatMControlNoDat.contains(o) ){                                                                           
+                                                    ao.add("Verificar");                        
+                                                    aoq.add("Verificar");
+                                                }else{                                                                              
+                                                      ao.add("Correcto");                          
+                                                      aoq.add("Correcto");                          
+                                                }                     
+        	  	 
+        	                                aResultados = ao.toArray();
+        	                                alResultados.add(aoq.toArray());
+        	                                dftm.addRow(aResultados);        	                                                                                                                                                                                                                                                                                         
+                                                
+                                            }else{
+                                                   aoq.add(cRuta.getText().trim());
+                                                   aoq.add(instituciones.get(o));
+       	        	                    
+                                                  if( mapaPosicionesRegistro.containsKey(o) && mapaPosicionesRegistroMcontrol.containsKey(o) ){                                             
+                                                      if( (int)mapaPosicionesRegistro.get(o) != (int)mapaPosicionesRegistroMcontrol.get(o) ){ 
+                                                          s1 = true; 
+             	                                      }                       
+                                                  }
+                   	       	                    	     
+                                                  if( mapaPosicionesRespuesta.containsKey(o) && mapaPosicionesRespuestaMcontrol.containsKey(o) ){
+                                                      if( (int)mapaPosicionesRespuesta.get(o) != (int)mapaPosicionesRespuestaMcontrol.get(o) ){
+                                                           s2 = true; 
+                                                      }
+                                                  }
+                                              
+                                                  if( setAne.contains(o) || setAsd.contains(o) || s1 || s2 || alAplicacionesDatsErraticos.contains(o) || 
+                                                      appDatMControlNoDat.contains(o) ){                                                                             
+                                                      ao.add("Verificar");                        
+                                                      aoq.add("Verificar");                        
+                                                  }else{                                                                                
+                                                        ao.add("Correcto");                          
+                                                        aoq.add("Correcto");                          
+                                                  }                
+                                                
+                                                  aResultados = ao.toArray();
+                                                  alResultados.add(aoq.toArray());
+        	                                  dftm.addRow(aResultados);        	                                                                                                                                                                                                
+                                                
+                                            }
+                                            
+                                            s1 = false;
+                                            s2 = false;   
+        	     
+                                      }    
+                                                     
+                                      tresultados.setModel(dftm);                                      
+                                      
+                                      tresultados.getColumn("Observaciones").setCellRenderer(new BotonRender());
+                                      tresultados.getColumn("Observaciones").setCellEditor(new ButtonEditor(new JCheckBox(),frame));
+ 
+                                      sResultados = new JScrollPane(tresultados);     
+         
+                                      gbc = new GridBagConstraints();         
+                                      gbc.gridx = 0;
+                                      gbc.gridy = 2;          
+                                      gbc.weightx = 0.1;
+                                      gbc.fill = GridBagConstraints.HORIZONTAL;
+                                      gbc.insets = new Insets(5,5,5,5);                                      
+                                                                                              
+                                      Applet.this.add(sResultados,gbc);
+                                                                            
+                                      Applet.this.eProcesando.setText("Terminado");
+                                      Applet.this.bProcesarAplicaciones.setEnabled(true);
+                                      Applet.this.bSalvarDatos.setEnabled(true);
+                                      
+                                      Applet.this.revalidate();
+                                      Applet.this.repaint();                                                           
+                                                                        
+                                 }                                                               
+                                                               
+                                 public Object agregaDato(Map<Object,Object> alObjetos,int tamaño,Object o,boolean real,String vieneDe){	        	            	    
+    	                                       
+    	                                Set<Object> set     = alObjetos.keySet();    	         	        
+    	                                Iterator<Object> si = set.iterator();                                        
+                                        
+    	                                while( si.hasNext() ){
+                                            
+                                               Object objeto = alObjetos.get(o);
+                                               boolean existe = si.next().equals(o);                                               
+                                               
+    	       	                               if( existe ){    	       	    	                                                   
+    	       	     	                           if( real ){           
+                                                       if( objeto != null ){ return objeto; }
+                                                       else{ return 0; } 
+                                                   }else{ return "No"; }    	       	    	
+    	       	                               }else{    	       	    	
+     	       	                                     if( real ){ 
+                                                         if( objeto != null ){ return objeto; }
+                                                         else{ return 0; }
+                                                     }
+     	       	                                     else{ return "Si"; }     	       	    	
+    	       	                               }
+                                               
+    	                                }
+    	         	    
+    	                                return "Si";
+	      
+                                 }
+                                 
+                                 public JScrollPane agregarBotObs( int canFilas ){
+                                       
+                                        JScrollPane panel = new JScrollPane();                                        
+                                                                                
+                                        for( int i = 0; i <= canFilas; i++ ){
+                                             JButton bo = new JButton("Agregar observacion");
+                                             panel.add(bo);
+                                        }
+                                        
+                                        return panel;
+                                       
+                                 }
                                                           
                               };
                                                                                                              
@@ -833,7 +1304,148 @@ public class Applet extends JPanel {
                     }
                        
                );
-              
+               
+               bSalvarDatos = new JButton("Guardar");
+               bSalvarDatos.setEnabled(false);
+               bSalvarDatos.addActionListener(new ActionListener() {
+
+                   @Override
+                   public void actionPerformed(ActionEvent e) {
+                         
+                          SwingWorker worker;
+                          worker = new SwingWorker() {
+
+                                  @Override
+                                  protected Void doInBackground(){                                                                                  
+                                            
+                                            Connection c = obtenConexion();
+                                                                                                                                 
+                                            try{                                                                                                 
+                                                                                                 
+                                                String select =  "select no_aplicacion from viimagenes where no_aplicacion = '";
+                                                for( Object[] datosArreglo : alResultados ){                                                                                                     
+                                                     Object no_aplicacion = datosArreglo[0];
+                                                     select += no_aplicacion + "'";
+                                                     System.out.println(select);
+                                                     Statement  s = c.createStatement();    
+                                                     ResultSet  rs = s.executeQuery(select);                                                     
+                                                     
+                                                     if( !rs.isBeforeFirst() ){
+                                                         
+                                                         String insert = "insert into viimagenes(no_aplicacion,tipo_aplicacion,subtipo,fecha_alta," +
+                                                                         "fecha_registro,imag_reg,imag_res,pregistro,pregistrobpm,pregistromcontrol," + 
+                                                                         "prespuesta,prespuestabpm,prespuestamcontrol,ruta,institucion,estado) values('";
+                                                                                            
+                                                         int i = 0;
+                                                         int longitud = datosArreglo.length - 1;
+                                                         for( Object dato: datosArreglo ){
+                                                          
+                                                              if( i == longitud ){ insert += dato + "')"; }
+                                                              else{ insert += dato + "','"; }
+                                                              i++;                                                                                                                                                                                                                                              
+                                                               
+                                                         }                                                                                                                  
+                                                           
+                                                         System.out.println(insert);
+                                                         s.executeUpdate(insert);                                                             
+                                                         
+                                                     }else{
+                                                           
+                                                           s  = c.createStatement();                                                               
+                                                           
+                                                           while( rs.next() ){
+                                                                  System.out.println(no_aplicacion + " existe");
+                                                                  String update = "update viimagenes set ";
+                                                                  String[] campos = {"tipo_aplicacion","subtipo","fecha_alta","fecha_registro","imag_reg","imag_res",
+                                                                                     "pregistro","pregistrobpm","pregistromcontrol","prespuesta","prespuestabpm",
+                                                                                     "prespuestamcontrol","ruta","institucion","estado"};
+                                                            
+                                                                  int longitud = datosArreglo.length - 1;
+                                                                  System.out.println("longitud " + longitud);
+                                                                  for( int i = 1; i <= datosArreglo.length - 1; i++ ){
+                                                                       if( i == longitud ){                                                                      
+                                                                           update += campos[i - 1] + " = '" + datosArreglo[i] + "' where no_aplicacion = '" +
+                                                                                     no_aplicacion + "'";                                                                                                                                                                                                                                                                                                                                                                                        
+                                                                       }else{
+                                                                             update += campos[i - 1] + " = '" + datosArreglo[i] + "',";
+                                                                       }
+                                                                  }
+                                                             
+                                                                  System.out.println(update);
+                                                                  s.executeUpdate(update);                                                                                                                                                                                                                                             
+                                                               
+                                                           }                                                                                                                       
+                                                                                                                                                                                 
+                                                     }                                                                                                          
+                                                                                                          
+                                                     select = "select no_aplicacion from viimagenes where no_aplicacion = '";
+                                                     rs.close();
+                                                
+                                                }                                                                                             
+                                                                                                
+                                                JOptionPane.showMessageDialog(
+                                                            null,
+                                                            "Datos salvados correctamente",
+                                                            "Exito",
+                                                            JOptionPane.INFORMATION_MESSAGE);
+                                                
+                                                
+                                            }catch(SQLException e){ 
+                                                
+                                                   int codigoError = e.getErrorCode();
+                                                           
+                                                   e.printStackTrace();
+                                                   
+                                                   if( codigoError > 0 ){
+                                                       JOptionPane.showMessageDialog(
+                                                                   null,
+                                                                   "Codigo de error " + codigoError + 
+                                                                   ".Reportalo al administrador del sistema",
+                                                                   "Error",
+                                                                   JOptionPane.ERROR_MESSAGE);                                                                                                                                                                             
+                                                   }
+                                                   
+                                            }
+                                            
+//                                            finally{ 
+//                                                    try{                                                        
+////                                                        s.close();
+////                                                        c.close();
+//                                                    }catch(SQLException e){ e.printStackTrace(); }
+//                                            }
+                                      
+                                            return null;
+                                      }
+                                  
+                                      @Override
+                                      public void done(){
+                                             Applet.this.eProcesando.setText("En espera");
+                                      }
+                            
+                                };
+                                  
+                                worker.execute();
+                                  
+                          };
+                          
+                          
+                          
+               });                                     
+                             
+               gbc = new GridBagConstraints();
+               gbc.anchor = GridBagConstraints.SOUTHEAST;
+               gbc.weightx = 0.1;
+               gbc.weighty = 0.1;
+               gbc.insets = new Insets(5,5,5,5);
+               panelDown.add(eProcesando,gbc); 
+               
+               gbc = new GridBagConstraints();
+               gbc.anchor = GridBagConstraints.SOUTHEAST;
+               gbc.weightx = 0.1;
+               gbc.weighty = 0.1;
+               gbc.insets = new Insets(5,5,5,5);
+               panelDown.add(bSalvarDatos,gbc);                              
+                             
                gbc = new GridBagConstraints();
                gbc.gridx = 4;
                gbc.gridy = 2;
@@ -842,20 +1454,38 @@ public class Applet extends JPanel {
                gbc.insets = new Insets(5,5,5,5);
                panelAplicacion.add(bProcesarAplicaciones,gbc);
                
-               gbc = new GridBagConstraints();
-               gbc.gridx = 0;
-               gbc.gridy = 0;
-               gbc.anchor = GridBagConstraints.WEST;
-               gbc.insets = new Insets(5,5,5,5);
-               add(panelExcel,gbc);                              
+               JPanel panelUp = new JPanel();
+               panelUp.add(panelExcel);
+               panelUp.add(panelAplicacion);
                
-               gbc = new GridBagConstraints();
-               gbc.gridx = 0;
-               gbc.gridy = 1;
+               gbc = new GridBagConstraints();               
+               gbc.anchor = GridBagConstraints.WEST;
+               add(panelUp,gbc);                                                                           
+               
+               gbc = new GridBagConstraints();                    
+               gbc.gridy = 4;
+               gbc.anchor = GridBagConstraints.SOUTH;
+               gbc.fill = GridBagConstraints.HORIZONTAL;               
                gbc.insets = new Insets(5,5,5,5);
-               add(panelAplicacion,gbc);
+               gbc.weighty = 0.5;
+               add(panelDown,gbc);
                          
-       }                                             
+       }    
+       
+       public Connection obtenConexion(){
+             
+              Connection c = null;
+              
+              try{
+                  
+                  Class.forName("com.mysql.jdbc.Driver");
+                  c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/ceneval","user","slipknot");
+                   
+              }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
+              
+              return c;
+            
+       }
                  
        public static void main(String args[]){
              
@@ -866,28 +1496,19 @@ public class Applet extends JPanel {
                   JPanel contenedor = new JPanel();
                   contenedor.setLayout(new GridBagLayout());
               
-                  GridBagConstraints gbc = new GridBagConstraints();                            
-                  gbc.anchor = GridBagConstraints.WEST;
+                  GridBagConstraints gbc = new GridBagConstraints();                                              
                   contenedor.add(new Applet(),gbc);
-              
-                  gbc = new GridBagConstraints();              
-                  gbc.weighty = 0.1;
-                  gbc.gridx = 0;
-                  gbc.gridy = 1;
-                  contenedor.add(new TablaResultados(),gbc);
-              
+                            
                   tabPane.addTab("Consolidacion",contenedor);
-              
-                  JFrame frame = new JFrame("Consolidacion de datos");                                    
-                  frame.setSize(1000,450);
-              
-                  frame.setContentPane(tabPane);
-                  //frame.setResizable(false);                                             
-                  frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-                  frame.setLocationByPlatform(true);
+                  tabPane.addTab("Generar Reportes",new GenerarReportes(""));
+                   
+                  frame = new JFrame("Consolidacion de datos");
+                  frame.setExtendedState(JFrame.MAXIMIZED_BOTH);              
+                  frame.setContentPane(tabPane);                  
+                  frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);                  
                   frame.setVisible(true);
                   
-              }catch(Exception e){ e.printStackTrace(); }
+              }catch(IOException | InvalidFormatException | HeadlessException e){ e.printStackTrace(); }
                                                   
        }
       
