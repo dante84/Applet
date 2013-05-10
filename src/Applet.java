@@ -754,21 +754,23 @@ public class Applet extends JPanel {
                                                       boolean esDir = appDir.isDirectory();                       	  
                                                       if( esDir ){                                                                                                                                  
                                                           File[] archivos = appDir.listFiles();                                                                                                                          
-                                                          for(File f : archivos){                                                                                                      
-                                                              String nombreArchivo = f.getName();  
+                                                          for( File f : archivos ){                                                                                                      
+                                                               String nombreArchivo = f.getName();  
                                                            
-                                                              if( nombreArchivo.endsWith(".tif") ){ imagenesExistenR++; }                                                                                                                                                                                                                                                      
+                                                               if( nombreArchivo.matches("\\d{6}\\_[Rr]\\d{3}\\.[t][i][f]") ){                                                                    
+                                                                   imagenesExistenR++; 
+                                                               }                                                                                                                                                                                                                                                                                                                    
+                                                               if( nombreArchivo.matches("\\d{6}\\_[Ss]\\d{3}\\.[t][i][f]") ){ 
+                                                                   imagenesExistenS++; 
+                                                               }                                                              
                                                               
-                                                              if( nombreArchivo.endsWith(".tif") ){ imagenesExistenS++; }
-                                                              
-                                                              
-                                                         }
-                                                          
-                                                                                                                   
+                                                          }
+                                                                                                                                                                             
                                                       }                                           
                                                                                       
                                                  }
                                                  
+                                                 System.out.println(o  + " " + imagenesExistenR + " " + imagenesExistenS);
                                                  imagEncR.put(o,imagenesExistenR);
                                                  imagEncS.put(o,imagenesExistenS);                                                                                                                   
                                                  
@@ -974,8 +976,7 @@ public class Applet extends JPanel {
                                      int posiciones = 0;                                                                               
         
                                      try{
-            	  
-                                         //Workbook wb = WorkbookFactory.create(new File("C:\\copiamcontrl.xlsx"));
+            	                                          
                                          Sheet hoja = wb.getSheetAt(0);                  
                                          Iterator<Row> rowIt = hoja.rowIterator();                                                 
                                          
@@ -1105,6 +1106,9 @@ public class Applet extends JPanel {
                                      
                                      boolean s1 = false;
                                      boolean s2 = false;   
+                                     
+                                     boolean imagResDat = false;
+                                     boolean imagRegDat = false;
                                                     
                                      int i = 0;
                                      while( it.hasNext() ){
@@ -1166,16 +1170,22 @@ public class Applet extends JPanel {
                                                 aoq.add(instituciones.get(o));
        	        	                                                                                 
                                                 if( mapaPosicionesRegistro.containsKey(o) && mapaPosicionesRegistroMcontrol.containsKey(o) ){                                             
+                                                    
                                                     if( (int)mapaPosicionesRegistro.get(o) != (int)mapaPosicionesRegistroMcontrol.get(o) ){ 
                                                         s1 = true; 
-              	                                    }                       
+              	                                    }                            
+                                                    
+                                                    if( (int)imagEncR.get(o) > 0 ){
+                                                            
+                                                    }
+                                                    
                                                 }
                    	       	                    	     
                                                 if( mapaPosicionesRespuesta.containsKey(o) && mapaPosicionesRespuestaMcontrol.containsKey(o) ){
                                                     if( (int)mapaPosicionesRespuesta.get(o) != (int)mapaPosicionesRespuestaMcontrol.get(o) ){
                                                         s2 = true; 
                                                     }
-                                                }
+                                                }                                                                                                
                                               
                                                 System.out.println(o + " " + setAne.contains(o) + " " + setAsd.contains(o) + " " +  s1 + " " + s2 + " " +
                                                                    alAplicacionesDatsErraticos.contains(o) + " " + appDatMControlNoDat.contains(o));
@@ -1332,7 +1342,7 @@ public class Applet extends JPanel {
                                                      
                                                      if( !rs.isBeforeFirst() ){
                                                          
-                                                         String insert = "insert into viimagenes(no_aplicacion,tipo_aplicacion,subtipo,fecha_alta," +
+                                                         String insert = "insert into viimagenes(no_aplicacion,instrumento,nombre,fecha_alta," +
                                                                          "fecha_registro,imag_reg,imag_res,pregistro,pregistrobpm,pregistromcontrol," + 
                                                                          "prespuesta,prespuestabpm,prespuestamcontrol,ruta,institucion,estado) values('";
                                                                                             
@@ -1356,7 +1366,7 @@ public class Applet extends JPanel {
                                                            while( rs.next() ){
                                                                   System.out.println(no_aplicacion + " existe");
                                                                   String update = "update viimagenes set ";
-                                                                  String[] campos = {"tipo_aplicacion","subtipo","fecha_alta","fecha_registro","imag_reg","imag_res",
+                                                                  String[] campos = {"instrumento","nombre","fecha_alta","fecha_registro","imag_reg","imag_res",
                                                                                      "pregistro","pregistrobpm","pregistromcontrol","prespuesta","prespuestabpm",
                                                                                      "prespuestamcontrol","ruta","institucion","estado"};
                                                             
