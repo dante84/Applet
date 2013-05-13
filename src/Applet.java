@@ -82,8 +82,11 @@ public class Applet extends JPanel {
        private SimpleDateFormat sdf;
        
        private int posicionesExcel = 0,ndr = -1,nds = -1;
-       private int numeroPosiciones = 0;       
-      
+       private int numeroPosiciones = 0;    
+       
+       private ConexionBase conexionBase;
+       private final String localhost = "127.0.0.1";
+       private final String remoto = "172.16.34.21";
        
        private final String[] meses   = {"Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"};
        private final String[] months  = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
@@ -258,6 +261,8 @@ public class Applet extends JPanel {
                
                setLayout(new GridBagLayout());
                
+               conexionBase = new ConexionBase();
+               
                gbc = new GridBagConstraints();
                
                eProcesando = new JLabel("En espera");
@@ -413,8 +418,10 @@ public class Applet extends JPanel {
                                                try{
    
                                                    Class.forName("com.mysql.jdbc.Driver");
-                                                   c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
-   
+                                                   //c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
+                                                   //c = conexionBase.getC(remoto,"replicasiipo","test","slipknot");   
+                                                   c = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
+                                                   
                                                    String select = "select nom_corto from datos_examenes where tipo_instr = '" + item + "'";
                                                    s = c.createStatement();
                                                    ResultSet rs = s.executeQuery(select);
@@ -625,9 +632,10 @@ public class Applet extends JPanel {
                 
                               private void obtenDatos() {
                        
-                                      Statement statement = conectaBase();                        
-                                      String select = "select cve_instr from datos_examenes";                                      
-                                                                                                                                      
+                                      Connection con;
+                                      con = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
+                                      //con = conexionBase.getC(remoto,"replicasiipo","test","slipknot");
+                                                                                                                                                                                                                  
                                       try{  wb = WorkbookFactory.create(aExcel); }
                                       catch(Exception e){ e.printStackTrace(); }
                               
@@ -641,6 +649,9 @@ public class Applet extends JPanel {
                                                  
                                       try{
                                                    
+                                          Statement statement = con.createStatement();//conectaBase();                        
+                                          String select = "select cve_instr from datos_examenes";                                      
+                                          
                                           select += " where nom_corto = '" + cste + "'" ;
                                            
                                           ResultSet rs = statement.executeQuery(select);
@@ -1077,23 +1088,7 @@ public class Applet extends JPanel {
                                      return aplicados;
    
                               }             
-                
-                              private Statement conectaBase(){
-                    
-                                      Connection c;
-                                      Statement sta = null;
-                     
-                                      try{
-                
-                                          Class.forName("com.mysql.jdbc.Driver");
-                                          c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
-                                          sta = c.createStatement();
-                            
-                                      }catch(Exception e ){ e.printStackTrace(); }
-                        
-                                      return sta;
-                      
-                              }
+                                              
                               
                               @Override
                               public void done(){                                                                                                                                                   
@@ -1328,7 +1323,10 @@ public class Applet extends JPanel {
                                   @Override
                                   protected Void doInBackground(){                                                                                  
                                             
-                                            Connection c = obtenConexion();
+                                            Connection c = conexionBase.getC(localhost,"ceneval","user","slipknot");
+                                            //Connection c = conexionBase.getC(remoto,"ceneval","user","slipknot");
+                                            
+                                            Statement  s = null;
                                                                                                                                  
                                             try{                                                                                                 
                                                                                                  
@@ -1337,7 +1335,7 @@ public class Applet extends JPanel {
                                                      Object no_aplicacion = datosArreglo[0];
                                                      select += no_aplicacion + "'";
                                                      System.out.println(select);
-                                                     Statement  s = c.createStatement();    
+                                                     s = c.createStatement();    
                                                      ResultSet  rs = s.executeQuery(select);                                                     
                                                      
                                                      if( !rs.isBeforeFirst() ){
@@ -1417,12 +1415,12 @@ public class Applet extends JPanel {
                                                    
                                             }
                                             
-//                                            finally{ 
-//                                                    try{                                                        
-////                                                        s.close();
-////                                                        c.close();
-//                                                    }catch(SQLException e){ e.printStackTrace(); }
-//                                            }
+                                            finally{ 
+                                                    try{                                                        
+                                                        s.close();
+                                                     c.close();
+                                                    }catch(SQLException e){ e.printStackTrace(); }
+                                            }
                                       
                                             return null;
                                       }
@@ -1480,22 +1478,7 @@ public class Applet extends JPanel {
                gbc.weighty = 0.5;
                add(panelDown,gbc);
                          
-       }    
-       
-       public Connection obtenConexion(){
-             
-              Connection c = null;
-              
-              try{
-                  
-                  Class.forName("com.mysql.jdbc.Driver");
-                  c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/ceneval","user","slipknot");
-                   
-              }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
-              
-              return c;
-            
-       }
+       }                
                  
        public static void main(String args[]){
              
