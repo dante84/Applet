@@ -39,7 +39,6 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.SwingWorker;
-import javax.jnlp.ExtendedService;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
@@ -69,11 +68,9 @@ public class Applet extends JPanel {
                                   mapaPosicionesRespuesta = new HashMap<>(),mapaPosicionesRespuestaBPM = new HashMap<>(),
                                   mapaPosicionesRespuestaMcontrol = new HashMap<>();
        private Map<Object,Object> mapaAplicacionesSinDatif = new HashMap<>(),aplicacionesInexistentes,
-                                  mapaAplicacionesPosicionesDesfazadas = new HashMap<>(),
-                                  mapaCantidadImagenes = new HashMap<>();
+                                  mapaAplicacionesPosicionesDesfazadas = new HashMap<>();
        private ArrayList<Object[]> alResultados = new ArrayList<>();
-       private File aExcel;
-       private ExtendedService extendedService;
+       private File aExcel;       
        private JComboBox<String> comboMes,comboTipoInstr,comboNombres_cortos;
        private JTable tresultados;
        private DefaultTableModel dftm;
@@ -94,168 +91,7 @@ public class Applet extends JPanel {
        private final String[] tiposInstrumento = {"AC286","ACRESEC","ACRETSU","ACUERDO","ALI","CEAACES","CONALEP","DGESPE","ECCYPEC","ECELE","ECODEMS","EGAL",
                                                   "EGEL","EGETSU","EPROM","ESPECIALES","EUC","EUCCA","EXANI","EXTRA","IFE","LEPRE_LEPRI","MCEF","Metropolitano",                                                  
                                                   "MINNESOTA","OLIMPIADA","PILOTO","PREESCOLAR_BACH","PREESCOLAR_LIC","SEISP","SSP","TRIF","UPN"
-                                                 };
-              
-       private final String[][] stExamen =  {{""},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {"ACREDITA_BACH","ACREDITA_SEC"},
-                                             {"ACREL_DII","ACREL_EIN","ACREL_EPRE","ACREL_EPRIM","ACREL_MODA"},
-                                             {"ACRETSU_CI","ACRETSU_PFP","ACRETSU_PI"},
-                                             {""},
-                                             {"IZTACALCO","TLAHUAC"},
-                                             {""},
-                                             {"EGC","EXI"},
-                                             {"ECCYPEC","ECCYPEC-CL","ECCYPEC-PC"},
-                                             {"ECELE - A2","ECELE - B1","ECELE - B2","ECELE - C1"},
-                                             {"ACREL - EPRIM","ACREL_EIN","ACREL_EPRE"},
-                                             {"ADMINISTRACION","CONTADURÍA","CIENCIAS FARMACÉUTICAS","DERECHO","LICENCIADO EN ENFERMERIA","TÉCNICO EN ENFERMERIA",
-                                              "INFORMÁTICA","INGENIERÍA DE SOFTWARE","CIENCIAS COMPUTACIONALES","INGENIERÍA COMPUTACIONAL",
-                                              "CIENCIAS AGRONÓMICAS PERFIL FITOTECNIA","CIENCIAS AGRONÓMICAS PERFIL ZOOTÉCNIA",
-                                              "CIENCIAS AGRONÓMICAS PERFIL AGROINDUSTRIA","EXIL-CBI","INGENIERÍA CIVIL","INGENIERÍA ELÉCTRICA",
-                                              "INGENIERÍA ELECTRÓNICA","INGENIERÍA INDUSTRIAL","INGENIERÍA QUÍMICA","MEDICINA GENERAL",
-                                              "MEDICINA VETERINARIA Y ZOOTÉCNIA","ODONTOLOGÍA","PEDAGOGÍA","PSICOLOGÍA CLÍNICA","PSICOLOGÍA EDUCATIVA",
-                                              "PSICOLOGÍA INDUSTRIAL","PSICOLOGÍA SOCIAL","TURISMO - GESTIÓN EMPRESARIAL","TURISMO - PLANIFICACIÓN Y DESARROLLO",
-                                              "COLEGIO DE CONTADORES","ACTUARÍA","INGENIERÍA MECÁNICA","INGENIERÍA MECÁNICA ELÉCTRICA","MERCADOTECNIA",
-                                              "COMERCIO/NEGOCIOS INTERNACIONALES","CIENCIAS QUÍMICAS","ECONOMÍA","REGISTRO EN LÍNEA","NUTRICIÓN",
-                                              "CIENCIAS DE LA COMUNICACIÓN","QUÍMICA INDUSTRIAL","QUÍMICA EN ALIMENTOS","PSICOLOGÍA","EUCP-E ( TECNICO )","TURISMO",
-                                              "EUCP-E ( LICENCIATURA )","BIOLOGÍA","QUIMICA CLINICA","INGENIERIA MECATRÓNICA","TRABAJO SOCIAL","CIENCIAS AGRÍCOLAS",
-                                              "QUIMICA","EXAMEN UNIFORME DE CERTIFICACION","EXAMEN UNICO DE CERTIFICACION PARA PROFESIONALES EN ORTODONCIA",
-                                              "EXAMEN UNIFORME DE CERTIFICACION DE LA CONTADURIA PUBLICA",
-                                              "EXAMEN UNIFORME DE CERTIFICACION DE LA CONTABILIDAD Y AUDITORIA GUBERNAMENTAL",
-                                              "EXAMEN UNIFORME DE CERTIFICACION DE LA CONTABILIDAD GUBERNAMENTAL","EXAMEN UNIFORME DE CERTIFICACION EN FISCAL",
-                                              "INGENIERIA EN ALIMENTOS","EXAMEN DE CERTIFICACION POR DISCIPLINAS DE LA CONTADURÍA - CONTABILIDAD"                                              ,
-                                              "EXAMEN DE CERTIFICACION POR DISCIPLINAS DE LA CONTADURÍA - FINANZAS"
-                                              },
-                                             {"EGETSU ADMINISTRACIÓN","EGETSU ADMINISTRACIÓN Y EVALUACIÓN DE PROYECTOS","EGETSU AGROBIOTECNOLOGÍA",
-                                              "EGETSU BIOTECNOLOGÍA","EGETSU COMERCIALIZACIÓN","EGETSU CONTABILIDAD CORPORATIVA",
-                                              "EGETSU ELECTRÓNICA Y AUTOMATIZACIÓN","EGETSU ELECTRICIDAD Y ELECTRÓNICA INDUSTRIAL","EGETSU INFORMÁTICA",
-                                              "EGETSU MANTENIMIENTO INDUSTRIAL","EGETSU MECÁNICA","EGETSU MECÁNICA Y PRODUCTICA","EGETSU METALICA Y AUTOPARTES",
-                                              "EGETSU OFIMÁTICA","EGETSU TECNOLOGÍA AMBIENTAL","EGETSU PROCESOS AGROINDUSTRIALES",
-                                              "EGETSU PROCESOS DE PRODUCCIÓN TEXTIL","EGETSU PROCESOS DE PRODUCCIÓN","EGETSU TECNOLOGÍA DE ALIMENTOS",
-                                              "EGETSU TELEMÁTICA","EGETSU TURISMO","EGETSU MECATRÓNICA","EGETSU ADMINISTRACIÓN DE EMPRESAS TURÍSTICAS",
-                                              "EGETSU ADMINISTRACIÓN DE AUTOPARTES Y LOGÍSTICA","EGETSU ARTES GRÁFICAS","EGETSU CONTADURÍA",
-                                              "EGETSU CLASIFICACIÓN ARANCELARIA Y DESPACHO ADUANERO","EGETSU INFORMÁTICA ADMINISTRATIVA","EGETSU IDIOMAS",
-                                              "EGETSU METÁLICA Y AUTOPARTES","EGETSU PARAMÉDICO","EGETSU QUÍMICA INDUSTRIAL","EGETSU QUÍMICA DE MATERIALES",
-                                              "EGETSU REDES, TELECOMUNICACIONES","EGETSU SISTEMAS DE GESTIÓN DE CALIDAD","EGETSU SISTEMAS INFORMÁTICOS","EGETSU CI",
-                                              "EGETSU GASTRONOMIA","EGETSU MANTENIMIENTO A MAQUINARIA PESADA","EGETSU NEGOCIOS INTERNACIONALES",
-                                              "EGETSU SALUD PÚBLICA","EGETSU DISEÑO Y PRODUCCION INDUSTRIAL","EGETSU SEGURIDAD ALIMENTARIA"},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {"EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE REACCION N.C",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE REACCION N.B",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE REACCION N.A",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE INV. NIVEL A",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE INV. NIVEL B",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE INV. NIVEL C",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE PREVENCION N.A",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE PREVENCION N.B",
-                                              "EXAMEN GENERAL PARA LA PROMOCION DE LA POLICIA FEDERAL POLICIA DE PREVENCION N.C"},
-                                             {"ESPECIALES"},
-                                             {"EUC_ENFER","EUC_EO","EUC_ODON","EUC_PSI","EUC_QUICLI","EUC_TENFER"},
-                                             {"EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS AUDITORIA-VIDA",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS VIDA",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS ACCIDENTES",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS AUDITORIA-DAÑOS",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS AUDITORIA-FIANZAS",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS FIANZAS",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS AUDITORIA GENERAL",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS DAÑOS",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS RENTAS VITALICIAS",
-                                              "EXAMEN UNICO DE CERTIFICACION DEL COLEGIO DE ACTUARIOS AUDITORIA-ACCIDENTES"},
-                                             {"E2E","EXANI_I","EXANI_II","EXANI_III","PREEXANI_I","PREEXANI_II","EXANI I - PILOTO METROPOLITANO"},
-                                             {""},
-                                             {"EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-BAS",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-BAS-MUES",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-BAS-MET",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-BAS-INF-MUES",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-INF-MUES-EXP",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-INF-MUES",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-MET",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-MUES",
-                                              "EXAMEN TRANSVERSAL POR CAMPOS DE CONOCIMIENTO PARA LA LIC. ES-EXP"},
-                                             {""},
-                                             {""},
-                                             {"IFE","IFE-MPIE","IFE-PFDP",
-                                              "Prueba de Ingreso al Servicio Profesional Electoral del IFE - Habilidades Intelectuales y Ciencias Sociales"},
-                                             {"EGC-LEPRE Y LEPRI"},
-                                             {"METROPOLITANO (COMIPEMS)"},
-                                             {""},
-                                             {"MINESSOTA"},
-                                             {"OLIMPIADA DE HABILIDADES ACADEMICAS INFANTILES Y JUVENILES"},
-                                             {"DIAGNÓSTICO DE COMPETENCIAS DE PROFESORES PARA LA EDUCACIÓN BÁSICA INTERCULTURAL"},
-                                             {"PREESCOLAR-BACHILLERATO"},
-                                             {"PREESCOLAR-LICENCIATURA"},
-                                             {"SEISP"},
-                                             {"POLICIA MINISTERIAL SERVICIO","POLICIA MINISTERIAL INGRESO","MINISTERIO PÚBLICO SERVICIO",
-                                              "MINISTERIO PÚBLICO INGRESO","PERITO SERVICIO","PERITO INGRESO","POLICIA PREVENTIVO SERVICIO",
-                                              "POLICIA PREVENTIVO INGRESO","CUSTODIO PENITENCIARIO SERVICIO","CUSTODIO PENITENCIARIO INGRESO",
-                                              "POLICIA PREVENTIVO DEL D.F.","SECRETARÍO DEL MINISTERIO PÚBLICO SERVICIO","SECRETARÍO DEL MINISTERIO PÚBLICO INGRESO",
-                                              "ACTUARIO SERVICIO","ACTUARIO INGRESO","DEFENSOR DE OFICIO SERVICIO","POLICIA FEDERAL PREVENTIVO"},
-                                             {"EXAMEN TEORICO DEL TRIBUNAL FEDERAL DE JUSTICIA FISCAL Y ADMINISTRATIVA"},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {""},
-                                             {""}                                             
-                                           };                      
-       
-       private int[][] claves_examen = { 
-                                         {156},
-                                         {305},
-                                         {303},
-                                         {304},
-                                         {301},
-                                         {324,325,326},
-                                         {381,244,354,243,},
-                                         {263,0,327},
-                                         {},
-                                         {},
-                                         {},
-                                         {},
-                                         {},
-                                         {},
-                                         {239,237,238},
-                                         {243,244,354},
-                                         {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,153,154,155,157,158,160,170,186,190,213,
-                                          214,215,224,227,230,226,232,233,234,225,322,300,194,195,382,383,384,385,392,393,394},
-                                         {51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,
-                                          199,258,259,260,261,262,295},
-                                         {},
-                                         {},
-                                         {},
-                                         {},
-                                         {328,329,330,331,332,333,334,335,336},
-                                         {231},
-                                         {},
-                                         {337,338,339,340,341,342,343,344,345,379},
-                                         {0,35,36,47,48,49,356},
-                                         {},
-                                         {255,264,265,266,267,268,386,387,388},
-                                         {},
-                                         {323,253,254,357},
-                                         {188},
-                                         {189},
-                                         {149},
-                                         {150},
-                                         {321},
-                                         {257},
-                                         {200},
-                                         {201},
-                                         {165},
-                                         {138,139,140,141,142,143,144,145,146,147,148,161,162,163,164,166,167},
-                                         {358},
-                                         {},
-                                         {},
-                                         {50},
-                                         {},
-                                         {},
-                                         {192}
-                                       };              
+                                                 };                                                             
        
        private Applet() throws IOException,InvalidFormatException{                                   
                
@@ -419,8 +255,8 @@ public class Applet extends JPanel {
    
                                                    Class.forName("com.mysql.jdbc.Driver");
                                                    //c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
-                                                   //c = conexionBase.getC(remoto,"replicasiipo","test","slipknot");   
-                                                   c = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
+                                                   c = conexionBase.getC(remoto,"replicasiipo","test","slipknot");   
+                                                   //c = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
                                                    
                                                    String select = "select nom_corto from datos_examenes where tipo_instr = '" + item + "'";
                                                    s = c.createStatement();
@@ -633,8 +469,8 @@ public class Applet extends JPanel {
                               private void obtenDatos() {
                        
                                       Connection con;
-                                      con = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
-                                      //con = conexionBase.getC(remoto,"replicasiipo","test","slipknot");
+                                      //con = conexionBase.getC(localhost,"replicasiipo","test","slipknot");
+                                      con = conexionBase.getC(remoto,"replicasiipo","test","slipknot");
                                                                                                                                                                                                                   
                                       try{  wb = WorkbookFactory.create(aExcel); }
                                       catch(Exception e){ e.printStackTrace(); }
@@ -1168,11 +1004,7 @@ public class Applet extends JPanel {
                                                     
                                                     if( (int)mapaPosicionesRegistro.get(o) != (int)mapaPosicionesRegistroMcontrol.get(o) ){ 
                                                         s1 = true; 
-              	                                    }                            
-                                                    
-                                                    if( (int)imagEncR.get(o) > 0 ){
-                                                            
-                                                    }
+              	                                    }                                                                                                                                    
                                                     
                                                 }
                    	       	                    	     
@@ -1180,12 +1012,25 @@ public class Applet extends JPanel {
                                                     if( (int)mapaPosicionesRespuesta.get(o) != (int)mapaPosicionesRespuestaMcontrol.get(o) ){
                                                         s2 = true; 
                                                     }
-                                                }                                                                                                
+                                                }
+                                                
+                                                if( mapaPosicionesRegistro.containsKey(o) || mapaPosicionesRegistroMcontrol.containsKey(o) ){
+                                                    if( (int)imagEncR.get(o) <= 0 ){
+                                                        imagRegDat = true;       
+                                                    }
+                                                }                                             
+                                                
+                                                if( mapaPosicionesRespuesta.containsKey(o) || mapaPosicionesRespuestaMcontrol.containsKey(o) ){
+                                                    if( (int)imagEncS.get(o) <= 0 ){
+                                                        imagResDat = true;       
+                                                    }
+                                                }                                             
+                                                
                                               
                                                 System.out.println(o + " " + setAne.contains(o) + " " + setAsd.contains(o) + " " +  s1 + " " + s2 + " " +
                                                                    alAplicacionesDatsErraticos.contains(o) + " " + appDatMControlNoDat.contains(o));
                                                 if( setAne.contains(o) || setAsd.contains(o) || s1 || s2 || alAplicacionesDatsErraticos.contains(o) || 
-                                                    appDatMControlNoDat.contains(o) ){                                                                           
+                                                    appDatMControlNoDat.contains(o) || imagRegDat || imagResDat ){                                                                           
                                                     ao.add("Verificar");                        
                                                     aoq.add("Verificar");
                                                 }else{                                                                              
@@ -1212,9 +1057,21 @@ public class Applet extends JPanel {
                                                            s2 = true; 
                                                       }
                                                   }
+                                                  
+                                                  if( mapaPosicionesRegistro.containsKey(o) || mapaPosicionesRegistroMcontrol.containsKey(o) ){
+                                                      if( (int)imagEncR.get(o) <= 0 ){
+                                                          imagRegDat = true;       
+                                                      }
+                                                  }                                             
+                                                
+                                                  if( mapaPosicionesRespuesta.containsKey(o) || mapaPosicionesRespuestaMcontrol.containsKey(o) ){
+                                                      if( (int)imagEncS.get(o) <= 0 ){
+                                                          imagResDat = true;       
+                                                      }
+                                                  }
                                               
                                                   if( setAne.contains(o) || setAsd.contains(o) || s1 || s2 || alAplicacionesDatsErraticos.contains(o) || 
-                                                      appDatMControlNoDat.contains(o) ){                                                                             
+                                                      appDatMControlNoDat.contains(o) || imagRegDat || imagResDat){                                                                             
                                                       ao.add("Verificar");                        
                                                       aoq.add("Verificar");                        
                                                   }else{                                                                                
@@ -1230,6 +1087,8 @@ public class Applet extends JPanel {
                                             
                                             s1 = false;
                                             s2 = false;   
+                                            imagRegDat = false;
+                                            imagResDat = false;
         	     
                                       }    
                                                      
@@ -1323,8 +1182,8 @@ public class Applet extends JPanel {
                                   @Override
                                   protected Void doInBackground(){                                                                                  
                                             
-                                            Connection c = conexionBase.getC(localhost,"ceneval","user","slipknot");
-                                            //Connection c = conexionBase.getC(remoto,"ceneval","user","slipknot");
+                                            //Connection c = conexionBase.getC(localhost,"ceneval","user","slipknot");
+                                            Connection c = conexionBase.getC(remoto,"ceneval","user","slipknot");
                                             
                                             Statement  s = null;
                                                                                                                                  
@@ -1346,6 +1205,7 @@ public class Applet extends JPanel {
                                                                                             
                                                          int i = 0;
                                                          int longitud = datosArreglo.length - 1;
+                                                         System.out.println("longitud " + longitud);
                                                          for( Object dato: datosArreglo ){
                                                           
                                                               if( i == longitud ){ insert += dato + "')"; }

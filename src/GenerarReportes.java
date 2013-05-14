@@ -8,7 +8,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.FileOutputStream;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -37,6 +36,7 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import java.awt.HeadlessException;
 import java.io.FileNotFoundException;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -54,7 +54,7 @@ public class GenerarReportes extends JPanel{
     
        private static final long serialVersionUID = 1L;
    	   
-       private JLabel etiquetaInstrumento,etiquetaSubAplicacion,etiquetaAño,etiquetaMes,etiquetaNoAplicacion,etiquetaFi,etiquetaDiaFi,etiquetaMesFi,etiquetaAñoFi,
+       private JLabel etiquetaInstrumento,etiquetaSubAplicacion,etiquetaNoAplicacion,etiquetaFi,etiquetaDiaFi,etiquetaMesFi,etiquetaAñoFi,
                       etiquetaFf,etiquetaDiaFf,etiquetaMesFf,etiquetaAñoFf,etiquetaFiltros;                           
        private JTextField campoNoAplicacion;
        private JButton botonGenerarvistaPreviaReporte,botonGenerarReporte;        
@@ -62,7 +62,7 @@ public class GenerarReportes extends JPanel{
        private static JPanel panelFiltros,panelFiltroAplicacion,panelFiltroInstrumento;
        private JTable tabla;                          
        private GridBagConstraints gbc;
-       private JComboBox<String> comboTipoInstr,comboNombres_cortos,comboAños,comboDiaFi,comboMesFi,comboAñoFi,comboDiaFf,comboMesFf,comboAñoFf,
+       private JComboBox<String> comboTipoInstr,comboNombres_cortos,comboDiaFi,comboMesFi,comboAñoFi,comboDiaFf,comboMesFf,comboAñoFf,
                                  comboFiltros;
        private ArrayList<Object[]> datosReporte;     
               
@@ -81,16 +81,21 @@ public class GenerarReportes extends JPanel{
        private String name,añoFiSeleccionado,añoFfSeleccionado;
        private boolean estadoFiltroAplicacion = true,estadoFiltroInstrumento = false,estadoFiltroFechas = false;
        final int nombresCantidad = nombresColumnas.length - 1;
-       private String intr = "",short_name = "";
+       private String short_name = "";
+       private ConexionBase conexionBase;
        int year,month;
+       private final String remoto = "172.16.34.21";
+       private final String localhost = "127.0.0.1";
               
        @SuppressWarnings("LeakingThisInConstructor")
        public GenerarReportes(String nombre){
              
     	      name = nombre;
     	      
-    	      setLayout(new GridBagLayout());
+    	      setLayout(new GridBagLayout());                            
     	      
+              conexionBase = new ConexionBase();
+              
               gbc = new GridBagConstraints();
               
               panelFiltros = new JPanel();
@@ -183,21 +188,7 @@ public class GenerarReportes extends JPanel{
               panelFiltroAplicacion.add(campoNoAplicacion,gbc);                                     
               
               panelFiltroInstrumento = new JPanel(new GridBagLayout());
-              
-              etiquetaAño = new JLabel("Año : ");              
-              gbc.gridx = 0;
-              gbc = new GridBagConstraints();
-              gbc.insets = new Insets(5,5,5,5);
-              gbc.anchor  = GridBagConstraints.WEST;
-              //panelFiltroInstrumento.add(etiquetaAño,gbc);
-              
-              comboAños = new JComboBox<>(años);
-              gbc.gridx = 1;
-              gbc = new GridBagConstraints();
-              gbc.insets  = new Insets(5,5,5,5);
-              gbc.anchor  = GridBagConstraints.EAST;
-              //panelFiltroInstrumento.add(comboAños,gbc);
-              
+                                          
               etiquetaInstrumento = new JLabel("Instrumento : ");
               gbc.gridx = 0;
               gbc.gridy = 0;
@@ -246,9 +237,9 @@ public class GenerarReportes extends JPanel{
                                          String[] nombres_cortosArray = null;
 
                                          try{
-   
-                                             Class.forName("com.mysql.jdbc.Driver");
-                                             c = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/replicasiipo","test","slipknot");
+                                               
+                                             c = conexionBase.getC(remoto,"replicasiipo","test","slipknot");
+                                             //c = conexionBase.getC(localhost,"replicasiipo","test","slipknot");                                             
    
                                              String select = "select nom_corto from datos_examenes where tipo_instr = '" + item + "'";
                                              s = c.createStatement();
@@ -275,7 +266,7 @@ public class GenerarReportes extends JPanel{
                                              s.close();
                                              c.close();
                      
-                                         }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
+                                         }catch(SQLException e){ e.printStackTrace(); }
                                               
                                          return nombres_cortosArray;       
 
@@ -675,7 +666,7 @@ public class GenerarReportes extends JPanel{
                                        }                                           
                                        if( estadoFiltroInstrumento ){ queryReporteInstrumento(); }                                           
 
-                                    	                                                                                                                                                                                           		        	                                           
+                                       
                                        return null;
                                        
                 	     }
@@ -683,12 +674,12 @@ public class GenerarReportes extends JPanel{
                              public void queryReporteAplicacion(String nomApp){                                                                        
                                     
                                     try{
+                                        c = conexionBase.getC(remoto,"ceneval","user","slipknot");
+                                        //c = conexionBase.getC(localhost,"ceneval","user","slipknot");                                        
                                         
-                                        c = obtenConexionBase();
                                         s = c.createStatement();
                                                                                    
-                                        String select = "";                                                                                   
-                                                                                      
+                                        String select;                                                                                                                                                                         
                                         select = "select * from viimagenes where no_aplicacion = '" + nomApp + "'";
                                            
                                         System.out.println(select);
@@ -761,7 +752,7 @@ public class GenerarReportes extends JPanel{
                                         c.close();
                                         rsMysql.close();
                                                                                                                                                                                                                                                                                                                                                                         
-                                    }catch(Exception e){ e.printStackTrace(); }
+                                    }catch(SQLException | HeadlessException e){ e.printStackTrace(); }
                                     finally{
                                             try{
                                                 rsMysql.close();                                                        
@@ -775,12 +766,13 @@ public class GenerarReportes extends JPanel{
                              public void queryReporteInstrumento(){
                                    
                                     try{
-                                        
-                                        c = obtenConexionBase();
+                                                                                
+                                        //c = conexionBase.getC(localhost,"ceneval","user","slipknot");
+                                        c = conexionBase.getC(remoto,"ceneval","user","slipknot");
                                         s = c.createStatement();
                                         
                                         int añoFi = Integer.valueOf(comboAñoFi.getSelectedItem().toString());
-                                        String mesFi  =  "";
+                                        String mesFi;
                                         int enteroMesFi = 0;
                                         
                                         for( int i = 0; i <= meses.length - 1; i++ ){
@@ -798,7 +790,7 @@ public class GenerarReportes extends JPanel{
                                         DateTime dtFi = new DateTime(añoFi, enteroMesFi,diaFi , 0,0);
                                         
                                         int añoFf = Integer.valueOf(comboAñoFf.getSelectedItem().toString());
-                                        String mesFf  =  "";
+                                        String mesFf;
                                         int enteroMesFf = 0;
                                         
                                         for( int i = 0; i <= meses.length - 1; i++ ){
@@ -827,7 +819,7 @@ public class GenerarReportes extends JPanel{
                                         }else{
                                         
                                               System.out.println(dateFi + " " + dateFf);
-                                              String select = "";                                                                                   
+                                              String select;                                                                                   
                                               
                                               SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd",Locale.ENGLISH);                    
                                               
@@ -910,7 +902,7 @@ public class GenerarReportes extends JPanel{
                                         
                                         }
                                                                                                                                                                                                                                                                                                                                                                                                                 
-                                    }catch(Exception e){ e.printStackTrace(); }
+                                    }catch(SQLException | NumberFormatException | HeadlessException e){ e.printStackTrace(); }
                                     finally{
                                             try{
                                                 rsMysql.close();                                                        
@@ -919,20 +911,7 @@ public class GenerarReportes extends JPanel{
                                             }catch(Exception e){ e.printStackTrace(); }                                  
                                     }
                                   
-                             }                                                          
-                             
-                             public Connection obtenConexionBase(){
-                                   
-                                    Connection con = null;
-                                    
-                                    try{
-                                        Class.forName("com.mysql.jdbc.Driver");                 
-                                        con = DriverManager.getConnection("jdbc:mysql://172.16.34.21:3306/ceneval","user","slipknot");
-                                    }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
-                                    
-                                    return con;
-                                    
-                             }
+                             }                                                                                                                    
                              
                              @Override
                              public void done(){
@@ -995,7 +974,7 @@ public class GenerarReportes extends JPanel{
                   SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
   		  String fCadena = sdf.format(new Date());
   		 
-  		  HeaderFooter encabezado = new HeaderFooter(new Phrase("Direccion de procesos opticos y calificacion.Validacion de posiciones e imagenes de "+
+  		  HeaderFooter encabezado = new HeaderFooter(new Phrase("Direccion de procesos opticos y calificacion.Validacion de imagenes de "+
   		                                                        "lectura optica " + short_name + " " + meses[month - 1] + " " + year + " " + fCadena, 
                                                              new Font(Font.TIMES_ROMAN,12f,Font.BOLD)), false);  		          
                   

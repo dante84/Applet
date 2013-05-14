@@ -1,17 +1,10 @@
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.Statement;
+import java.sql.SQLException;
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+// @author daniel
 
-/**
- *
- * @author daniel
- */
 public class ConexionBase {
     
         private Connection c;        
@@ -23,7 +16,7 @@ public class ConexionBase {
                    Class.forName("com.mysql.jdbc.Driver");
                    c = DriverManager.getConnection("jdbc:mysql://" + host + ":3306/" + base,usuario,pass);         
                      
-               }catch(Exception e){ e.printStackTrace(); }
+               }catch(ClassNotFoundException | SQLException e){ e.printStackTrace(); }
               
                return c;
                
